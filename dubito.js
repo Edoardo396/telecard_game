@@ -47,12 +47,25 @@ class DubitoGame {
         this.turn = 0;
     }
 
+    gameReset() {
+        this.players = []; // type: Player
+        this.turn = null;
+        this.last_table_card = null;
+        this.last_declared_card = null;
+        this.banco = [];
+        this.game_admin = null;
+        this.new_turn = null
+    }
+
     player_turn() {
         return this.players[this.turn % this.players.length]
     }
 
     last_player_turn() {
-        return this.players[this.turn - 1 % this.players.length]
+        if(this.turn % this.players.length === 0)
+            return this.players[this.players.length-1];
+        else
+            return this.players[(this.turn % this.players.length) - 1]
     }
 
     dubita() {
@@ -61,15 +74,23 @@ class DubitoGame {
 
             this.last_player_turn().hand.push(this.banco);
             this.banco = [];
+            return true
 
         } else {
 
            this.player_turn().hand.push(this.banco);
            this.banco = [];
+            this.turn++;
+            this.new_turn();
+           return false
 
         }
+    }
 
-        this.turn++;
+    _foreach_player(f) {
+        for (let player of this.players) {
+            f(player)
+        }
     }
 
     gioca(real, declared) {
@@ -79,8 +100,10 @@ class DubitoGame {
 
         this.banco.push(real);
         this.last_declared_card = declared;
+        this.last_table_card = real;
 
         this.turn++;
+        this.new_turn()
     }
 
     print_debug() {

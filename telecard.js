@@ -2,7 +2,7 @@
 const Telegraf = require('telegraf');
 const Dubito = require('./dubito.js');
 const util = require("util");
-let game = new Dubito.DubitoGame();
+const game = new Dubito.DubitoGame();
 
 const bot = new Telegraf("817731928:AAGYI67d8NIbN0T4g6zEOdKf52o1YFMIfX4");
 
@@ -18,6 +18,14 @@ game.new_turn = function () {
 
 bot.start(ctx => {
     ctx.reply("Benvenuto in Telecard! Per iniziare a giocare digita /join tuonome")
+});
+
+bot.command('gameinfo', ctx => {
+    ctx.reply("Turn: " + game.turn);
+    ctx.reply("Player's turn: " + game.player_turn().player_name);
+
+
+    ctx.reply("Connected players: " + game.players.map(element => element.player_name))
 });
 
 bot.command('join', (ctx) => {
@@ -66,7 +74,7 @@ bot.command('stopgame', ctx => {
         ctx.reply("You are not allowed to run this command");
     }
 
-    game = new Dubito.DubitoGame();
+    game.gameReset();
 
     for (let player of game.players) {
         bot.telegram.sendMessage(player.chat_id,
@@ -117,9 +125,39 @@ bot.on('message', ctx => {
     }
 
     if (ctx.message.text.toLowerCase() === "doubt it") {
-        game.dubita()
-    } else {
 
+        if (game.dubita()) {
+            game._foreach_player(p => {
+                bot.telegram.sendMessage(p.chat_id, util.format("%s doubted right, last card was %s and not %s!\n%s has now %d card in hands!",
+                    me.player_name, game.last_table_card, game.last_declared_card, game.last_player_turn().player_name, game.last_player_turn().hand.length));
+                bot.telegram.sendMessage(p.chat_id, "It is " + me.player_name + "'s turn");
+                bot.telegram.sendMessage(me.chat_id, "It's your turn")
+            });
+        } else {
+            game._foreach_player(p => {
+                bot.telegram.sendMessage(p.chat_id, util.format("%s doubted wrong, last card was effectively %s!\n%s has now %d card in hands!",
+                    me.player_name, game.last_table_card, me.player_name, me.hand.length))
+            });
+        }
+
+    } else {
+        let parts = ctx.message.text.split(' ');
+
+        let real = parts[1];
+        let expect = parts[2];
+
+        try {
+            game.gioca(real, expect)
+        } catch (e) {
+            ctx.reply(e);
+            return;
+        }
+
+        me.hand.splice(me.hand.indexOf(real), 1);
+
+        game._foreach_player(p => {
+            bot.telegram.sendMessage(p.chat_id, util.format("%s played %s\nThere are %d cards on the table", me.player_name, expect, game.banco.length))
+        });
     }
 });
 
