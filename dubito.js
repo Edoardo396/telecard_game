@@ -14,10 +14,24 @@ class Player {
 class DubitoGame {
 
     constructor() {
-        this.players = [] // type: Player
+        this.players = []; // type: Player
+        this.turn = null;
+        this.last_table_card = null;
+        this.last_declared_card = null;
+        this.banco = [];
+        this.game_admin = null;
+        this.new_turn = null
+    }
+
+    get_player(chat_id) {
+        return this.players.find(el => el.chat_id === chat_id)
     }
 
     start() {
+        if(this.players.length === 0) {
+            throw new Error("Can't play with 0 players");
+        }
+
         const cards = Array.from(all_cards);
         cards.sort((a, b) => 0.5 - Math.random());
 
@@ -28,9 +42,53 @@ class DubitoGame {
             for (let i = 0; i < cards_per_player; i++) {
                 player.hand.push(cards.pop())
             }
+        }
+
+        this.turn = 0;
+    }
+
+    player_turn() {
+        return this.players[this.turn % this.players.length]
+    }
+
+    last_player_turn() {
+        return this.players[this.turn - 1 % this.players.length]
+    }
+
+    dubita() {
+
+        if(this.last_table_card !== this.last_declared_card) {
+
+            this.last_player_turn().hand.push(this.banco);
+            this.banco = [];
+
+        } else {
+
+           this.player_turn().hand.push(this.banco);
+           this.banco = [];
 
         }
 
+        this.turn++;
+    }
+
+    gioca(real, declared) {
+        if(!this.player_turn().hand.includes(real)) {
+            throw new Error("You can't play a card you don't have")
+        }
+
+        this.banco.push(real);
+        this.last_declared_card = declared;
+
+        this.turn++;
+    }
+
+    print_debug() {
+        console.log(this);
+
+        for (let player of this.players) {
+            console.log(player.player_name + " hand is " + player.hand)
+        }
     }
 }
 
