@@ -4,29 +4,29 @@ const Dubito = require('./dubito.js');
 const util = require("util");
 const fs = require("fs");
 
-let nicknames = fs.readFileSync("./random_nicks.txt").toString().split("\n");
-let game = new Dubito.DubitoGame();
+const nicknames = fs.readFileSync("./random_nicks.txt").toString().split("\n");
 const game = new Dubito.DubitoGame();
+
 const db = require("tedious");
 
-var Connection = require('tedious').Connection;
-
-var config = {
-    server: '192.168.192.132',
-    authentication: {
-        type: 'default',
-        options: {
-            userName: 'sa',
-            password: ''
-        }
-    }
-};
-
-var connect = new Connection(config);
-
-connect.on('connect', function (err) {
-    console.log("Connesso!");
-});
+// const Connection = require('tedious').Connection;
+//
+// const config = {
+//     server: '192.168.192.132',
+//     authentication: {
+//         type: 'default',
+//         options: {
+//             userName: 'sa',
+//             password: ''
+//         }
+//     }
+// };
+//
+// const connect = new Connection(config);
+//
+// connect.on('connect', function (err) {
+//     console.log("Connesso!");
+// });
 
 const bot = new Telegraf("817731928:AAGYI67d8NIbN0T4g6zEOdKf52o1YFMIfX4");
 
@@ -60,7 +60,7 @@ bot.command('join', (ctx) => {
     }
 
     let parts = ctx.message.text.split(' ');
-    let name = parts.length === 2 ?  parts[1] : nicknames[Math.random() * (nicknames.length - 1)];
+    let name = parts.length === 2 ? parts[1] : nicknames[Math.random() * (nicknames.length - 1)];
 
     let me = new Dubito.Player(name, ctx.chat.id);
     game.players.push(me);
@@ -79,7 +79,7 @@ bot.command('join', (ctx) => {
 bot.command('startgame', ctx => {
     let me = game.get_player(ctx.chat.id);
 
-    if(me == null) {
+    if (me == null) {
         ctx.reply("You have to /join first");
         return;
 
@@ -94,11 +94,13 @@ bot.command('startgame', ctx => {
 
     for (let player of game.players) {
         bot.telegram.sendMessage(player.chat_id,
-            util.format("Game is started!\nYour hand is: %s\nIt's %s's turn, wait for your turn to play", me.hand, game.player_turn().player_name));
+            util.format("Game is started!\nYour hand is: %s\nIt's %s's turn, wait for your turn to play", player.hand, game.player_turn().player_name));
 
     }
 
     game.new_turn();
+
+    print_debug();
 });
 
 bot.command('stopgame', ctx => {
@@ -119,10 +121,16 @@ bot.command('stopgame', ctx => {
 bot.command('hand', ctx => {
     let me = game.get_player(ctx.chat.id);
 
-    ctx.reply("Your hand is: " + me.hand);
+    if(me === undefined || game.turn === -1) {
+        ctx.reply("Game is not started or you haven't joined the game.");
+        return;
+    }
+
+    ctx.reply(util.format("Your hand is: %s (%d cards)", me.hand, me.hand.length));
 });
 
 bot.command('debuginfo', ctx => {
+    print_debug();
     ctx.reply("Table: " + game.banco);
     ctx.reply("Turn: " + game.turn);
     ctx.reply("Player's turn: " + game.player_turn().player_name);
@@ -152,6 +160,11 @@ bot.command('help', ctx => {
 
 bot.on('message', ctx => {
     let me = game.get_player(ctx.chat.id);
+
+    if(game.turn === -1) {
+        ctx.reply("Game is not started.");
+        return;
+    }
 
     if (game.player_turn() !== me) {
         ctx.reply("It's not your turn, you バカ!");
@@ -193,7 +206,22 @@ bot.on('message', ctx => {
             bot.telegram.sendMessage(p.chat_id, util.format("%s played %s\nThere are %d cards on the table", me.player_name, expect, game.banco.length))
         });
     }
+
+    print_debug();
 });
+
+function print_debug() {
+    console.log("Turn:" + game.turn);
+    console.log("Players:" + game.players.map(p => p.player_name));
+    console.log("Last table card:" + game.last_table_card);
+    console.log("Last declared card:" + game.last_declared_card);
+    console.log("Banco:" + game.banco);
+
+    for (let player of game.players) {
+        console.log(player.player_name + " hand is " + player.hand)
+    }
+
+}
 
 bot.launch();
 

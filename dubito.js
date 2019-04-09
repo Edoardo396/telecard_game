@@ -1,7 +1,55 @@
-const all_cards = ["1A", "2A", "3A", "4A", "5A", "6A", "7A", "8A", "9A", "10A", "11A", "12A", "13A",
-    "1B", "2B", "3B", "4B", "5B", "6B", "7B", "8B", "9B", "10B", "11B", "12B", "13B",
-    "1C", "2C", "3C", "4C", "5C", "6C", "7C", "8C", "9C", "10C", "11C", "12C", "13C",
-    "1D", "2D", "3D", "4D", "5D", "6D", "7D", "8D", "9D", "10D", "11D", "12D", "13D"];
+const all_cards = ["A1",
+    "A2",
+    "A3",
+    "A4",
+    "A5",
+    "A6",
+    "A7",
+    "A8",
+    "A9",
+    "A10",
+    "A11",
+    "A12",
+    "A13",
+    "B1",
+    "B2",
+    "B3",
+    "B4",
+    "B5",
+    "B6",
+    "B7",
+    "B8",
+    "B9",
+    "B10",
+    "B11",
+    "B12",
+    "B13",
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8",
+    "C9",
+    "C10",
+    "C11",
+    "C12",
+    "C13",
+    "D1",
+    "D2",
+    "D3",
+    "D4",
+    "D5",
+    "D6",
+    "D7",
+    "D8",
+    "D9",
+    "D10",
+    "D11",
+    "D12",
+    "D13"];
 
 class Player {
     constructor(name, chatid) {
@@ -15,7 +63,7 @@ class DubitoGame {
 
     constructor() {
         this.players = []; // type: Player
-        this.turn = null;
+        this.turn = -1;
         this.last_table_card = null;
         this.last_declared_card = null;
         this.banco = [];
@@ -28,7 +76,7 @@ class DubitoGame {
     }
 
     start() {
-        if(this.players.length === 0) {
+        if (this.players.length === 0) {
             throw new Error("Can't play with 0 players");
         }
 
@@ -49,7 +97,7 @@ class DubitoGame {
 
     gameReset() {
         this.players = []; // type: Player
-        this.turn = null;
+        this.turn = -1;
         this.last_table_card = null;
         this.last_declared_card = null;
         this.banco = [];
@@ -62,15 +110,15 @@ class DubitoGame {
     }
 
     last_player_turn() {
-        if(this.turn % this.players.length === 0)
-            return this.players[this.players.length-1];
+        if (this.turn % this.players.length === 0)
+            return this.players[this.players.length - 1];
         else
             return this.players[(this.turn % this.players.length) - 1]
     }
 
     dubita() {
 
-        if(this.get_number(this.last_table_card) !== this.last_declared_card) {
+        if (DubitoGame.get_number(this.last_table_card) !== this.last_declared_card) {
 
             this.last_player_turn().hand.push(this.banco);
             this.banco = [];
@@ -78,11 +126,11 @@ class DubitoGame {
 
         } else {
 
-           this.player_turn().hand.push(this.banco);
-           this.banco = [];
+            this.player_turn().hand.push(this.banco);
+            this.banco = [];
             this.turn++;
             this.new_turn();
-           return false
+            return false
 
         }
     }
@@ -93,12 +141,12 @@ class DubitoGame {
         }
     }
 
-    get_number(card) {
+    static get_number(card) {
         return card.substring(1);
     }
 
     gioca(real, declared) {
-        if(!this.player_turn().hand.includes(real)) {
+        if (!this.player_turn().hand.includes(real)) {
             throw new Error("You can't play a card you don't have")
         }
 
@@ -108,14 +156,6 @@ class DubitoGame {
 
         this.turn++;
         this.new_turn()
-    }
-
-    print_debug() {
-        console.log(this);
-
-        for (let player of this.players) {
-            console.log(player.player_name + " hand is " + player.hand)
-        }
     }
 }
 
