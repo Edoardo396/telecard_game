@@ -11,6 +11,7 @@
   "dependencies": {
     "node-telegram-bot-api": "^0.30.0",
     "nodeunit": "^0.11.3",
+    "tedious": "^6.1.0",
     "telegraf": "^3.28.0"
   }
 }

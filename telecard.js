@@ -3,6 +3,26 @@ const Telegraf = require('telegraf');
 const Dubito = require('./dubito.js');
 const util = require("util");
 const game = new Dubito.DubitoGame();
+const db = require("tedious");
+
+var Connection = require('tedious').Connection;
+
+var config = {
+    server: '192.168.192.132',
+    authentication: {
+        type: 'default',
+        options: {
+            userName: 'sa',
+            password: ''
+        }
+    }
+};
+
+var connect = new Connection(config);
+
+connect.on('connect', function (err) {
+    console.log("Connesso!");
+});
 
 const bot = new Telegraf("817731928:AAGYI67d8NIbN0T4g6zEOdKf52o1YFMIfX4");
 
