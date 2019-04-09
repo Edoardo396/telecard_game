@@ -2,9 +2,13 @@
 const Telegraf = require('telegraf');
 const Dubito = require('./dubito.js');
 const util = require("util");
+const fs = require("fs");
+
+let nicknames = fs.readFileSync("./random_nicks.txt").toString().split("\n");
 let game = new Dubito.DubitoGame();
 
 const bot = new Telegraf("817731928:AAGYI67d8NIbN0T4g6zEOdKf52o1YFMIfX4");
+
 
 game.new_turn = function () {
     for (let player of game.players) {
@@ -27,7 +31,9 @@ bot.command('join', (ctx) => {
     }
 
     let parts = ctx.message.text.split(' ');
-    let me = new Dubito.Player(parts[1], ctx.chat.id);
+    let name = parts.length === 2 ?  parts[1] : nicknames[Math.random() * (nicknames.length - 1)];
+
+    let me = new Dubito.Player(name, ctx.chat.id);
     game.players.push(me);
 
 
@@ -44,8 +50,15 @@ bot.command('join', (ctx) => {
 bot.command('startgame', ctx => {
     let me = game.get_player(ctx.chat.id);
 
+    if(me == null) {
+        ctx.reply("You have to /join first");
+        return;
+
+    }
+
     if (me !== game.game_admin) {
         ctx.reply("You are not allowed to run this command");
+        return;
     }
 
     game.start();
@@ -93,7 +106,7 @@ bot.command('debuginfo', ctx => {
 function send_help(id) {
     bot.telegram.sendMessage(id, "Entra nalla partita con /join $nome, aspetta che la partita inizi dopodichè segui il gioco utilizzando i messagi che il bot invierà,\n" +
         "Quando è il tuo turno puoi dubitare inviando \"doubt it\" oppure posare una carta inviando \"play $real $expected\",\n" +
-        "con $real indichi la carta che poserai veramente, con $expected quella che invece dici di aver posato\n" +
+        "con $real indichi la carta che poserai veramente, con $expected quella che invece dici di aver posato (solo il numero)\n" +
         "\n" +
         "\n" +
         "Commands:\n" +

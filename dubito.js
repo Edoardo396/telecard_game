@@ -57,7 +57,7 @@ class DubitoGame {
 
     dubita() {
 
-        if(this.last_table_card !== this.last_declared_card) {
+        if(this.get_number(this.last_table_card) !== this.last_declared_card) {
 
             this.last_player_turn().hand.push(this.banco);
             this.banco = [];
@@ -70,6 +70,10 @@ class DubitoGame {
         }
 
         this.turn++;
+    }
+
+    get_number(card) {
+        return card.substring(1);
     }
 
     gioca(real, declared) {
