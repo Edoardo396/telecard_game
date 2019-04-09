@@ -150,6 +150,10 @@ class DubitoGame {
             throw new Error("You can't play a card you don't have")
         }
 
+        if(this.last_declared_card !== null && declared !== this.last_declared_card) {
+            throw new Error("You must play a card with the same number of the last one!")
+        }
+
         this.banco.push(real);
         this.last_declared_card = declared;
         this.last_table_card = real;

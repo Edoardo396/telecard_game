@@ -46,21 +46,24 @@ bot.start(ctx => {
 });
 
 bot.command('gameinfo', ctx => {
-    ctx.reply("Turn: " + game.turn);
-    ctx.reply("Player's turn: " + game.player_turn().player_name);
-
-
     ctx.reply("Connected players: " + game.players.map(element => element.player_name))
+
+
+    if (game.turn > -1) {
+        ctx.reply("Turn: " + game.turn);
+        ctx.reply("Player's turn: " + game.player_turn().player_name);
+    }
 });
 
 bot.command('join', (ctx) => {
-    if (game.turn > 0) {
+    if (game.turn !== -1) {
         ctx.reply("Game already started, try again later");
         return;
     }
 
     let parts = ctx.message.text.split(' ');
-    let name = parts.length === 2 ? parts[1] : nicknames[Math.random() * (nicknames.length - 1)];
+
+    let name = parts.length === 2 ? parts[1] : nicknames[Math.round(Math.random() * (nicknames.length - 1))];
 
     let me = new Dubito.Player(name, ctx.chat.id);
     game.players.push(me);
@@ -121,7 +124,7 @@ bot.command('stopgame', ctx => {
 bot.command('hand', ctx => {
     let me = game.get_player(ctx.chat.id);
 
-    if(me === undefined || game.turn === -1) {
+    if (me === undefined || game.turn === -1) {
         ctx.reply("Game is not started or you haven't joined the game.");
         return;
     }
@@ -161,7 +164,7 @@ bot.command('help', ctx => {
 bot.on('message', ctx => {
     let me = game.get_player(ctx.chat.id);
 
-    if(game.turn === -1) {
+    if (game.turn === -1) {
         ctx.reply("Game is not started.");
         return;
     }
@@ -178,7 +181,6 @@ bot.on('message', ctx => {
                 bot.telegram.sendMessage(p.chat_id, util.format("%s doubted right, last card was %s and not %s!\n%s has now %d card in hands!",
                     me.player_name, game.last_table_card, game.last_declared_card, game.last_player_turn().player_name, game.last_player_turn().hand.length));
                 bot.telegram.sendMessage(p.chat_id, "It is " + me.player_name + "'s turn");
-                bot.telegram.sendMessage(me.chat_id, "It's your turn")
             });
         } else {
             game._foreach_player(p => {
@@ -196,7 +198,8 @@ bot.on('message', ctx => {
         try {
             game.gioca(real, expect)
         } catch (e) {
-            ctx.reply(e);
+            ctx.reply(e.message);
+            print_debug();
             return;
         }
 
@@ -218,8 +221,10 @@ function print_debug() {
     console.log("Banco:" + game.banco);
 
     for (let player of game.players) {
-        console.log(player.player_name + " hand is " + player.hand)
+        console.log(player.player_name + " hand is " + player.hand);
     }
+
+    console.log("\n");
 
 }
 
