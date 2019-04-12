@@ -118,11 +118,12 @@ class DubitoGame {
 
     dubita() {
 
-        if (DubitoGame.get_number(this.last_table_card) !== this.last_declared_card) {
+        let result = DubitoGame.get_number(this.last_table_card) !== this.last_declared_card
+
+        if (result) {
 
             this.last_player_turn().hand.push(this.banco);
             this.banco = [];
-            return true
 
         } else {
 
@@ -130,9 +131,12 @@ class DubitoGame {
             this.banco = [];
             this.turn++;
             this.new_turn();
-            return false
 
         }
+
+        this.last_declared_card = null;
+
+        return result
     }
 
     _foreach_player(f) {
