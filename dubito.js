@@ -1,3 +1,5 @@
+const _ = require("underscore/underscore");
+
 const deckSize = {
     2: 16,
     3: 36,
@@ -11,6 +13,26 @@ const seedConversion = {
     "C": String.fromCharCode(0x2666),
     "D": String.fromCharCode(0x2663)
 };
+
+function reverseSeedConversion(value) {
+    let str = value.substring(value.length - 1);
+
+    let converted;
+
+    if(str === "D") {
+        converted = "C"
+    } else if (str === "C") {
+        converted = "A"
+    } else if (str === "H") {
+        converted = "B"
+    } else if (str === "S") {
+        converted = "D"
+    } else {
+        converted = _.invert(seedConversion)[str]
+    }
+
+    return converted + value.substring(0, value.length - 1);
+}
 
 function handToOutput(hand) {
     hand.sort();
@@ -162,5 +184,5 @@ class DubitoGame {
 }
 
 module.exports = {
-    DubitoGame, Player, cardToOutput, handToOutput
+    DubitoGame, Player, cardToOutput, handToOutput, reverseSeedConversion
 };

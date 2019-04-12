@@ -32,11 +32,26 @@ const db = require("tedious");
 
 const bot = new Telegraf("817731928:AAGYI67d8NIbN0T4g6zEOdKf52o1YFMIfX4");
 
+function getButtonsArray(hand) {
+    let arr = [];
+
+    for (let card of hand) {
+        arr.push(Dubito.cardToOutput(card))
+    }
+
+    return arr;
+}
+
 
 game.new_turn = function () {
     for (let player of game.players) {
         if (player === game.player_turn()) {
-            bot.telegram.sendMessage(player.chat_id, "It's your turn");
+            bot.telegram.sendMessage(player.chat_id, "It's your turn", Markup.keyboard([
+                getButtonsArray(player.hand),
+                ["Doubt"]
+
+
+            ]).oneTime().resize().extra());
         } else {
             bot.telegram.sendMessage(player.chat_id, "It's " + game.player_turn().player_name + "'s turn");
         }
@@ -64,7 +79,7 @@ bot.command('join', (ctx) => {
         return;
     }
 
-    if(game.get_player(ctx.chat.id) != null) {
+    if (game.get_player(ctx.chat.id) != null) {
         ctx.reply("You are already in the game");
         return;
     }
@@ -85,7 +100,7 @@ bot.command('join', (ctx) => {
     }
 
     game._foreach_player(p => {
-        if(p !== me) {
+        if (p !== me) {
             bot.telegram.sendMessage(p.chat_id, util.format("%s joined the game.\nConnected players: %s", me.player_name, game.players.map(pl => pl.player_name)));
         }
     });
@@ -120,6 +135,7 @@ bot.command('startgame', ctx => {
     print_debug();
 });
 
+
 bot.command('stopgame', ctx => {
     let me = game.get_player(ctx.chat.id);
 
@@ -143,7 +159,7 @@ bot.command('hand', ctx => {
         return;
     }
 
-    ctx.reply(util.format("Your hand is: %s (%d cards)", me.hand, me.hand.length));
+    ctx.reply(util.format("Your hand is: %s \n(%d cards)", Dubito.handToOutput(me.hand), me.hand.length));
 });
 
 bot.command('debuginfo', ctx => {
@@ -194,7 +210,7 @@ bot.on('message', ctx => {
     }
 
     if (ctx.message.text.toLowerCase() === "doubt") {
-        if(game.banco.length === 0) {
+        if (game.banco.length === 0) {
             ctx.reply("Cannot doubt first turn");
             return;
         }
@@ -203,7 +219,7 @@ bot.on('message', ctx => {
         if (game.dubita()) {
             game._foreach_player(p => {
                 bot.telegram.sendMessage(p.chat_id, util.format("%s doubted right, last card was %s and not %s!\n%s has now %d card in hands!",
-                    me.player_name, game.last_table_card, game.last_declared_card, game.last_player_turn().player_name, game.last_player_turn().hand.length)).then(() => {
+                    me.player_name, Dubito.cardToOutput(game.last_table_card), Dubito.cardToOutput(game.last_declared_card), game.last_player_turn().player_name, game.last_player_turn().hand.length)).then(() => {
                     bot.telegram.sendMessage(p.chat_id, "It is " + me.player_name + "'s turn");
                 });
             });
@@ -211,7 +227,7 @@ bot.on('message', ctx => {
         } else {
             game._foreach_player(p => {
                 bot.telegram.sendMessage(p.chat_id, util.format("%s doubted wrong, last card was effectively %s!\n%s has now %d card in hands!",
-                    me.player_name, game.last_table_card, me.player_name, me.hand.length))
+                    me.player_name, Dubito.cardToOutput(game.last_table_card), me.player_name, me.hand.length))
             });
         }
 
@@ -226,17 +242,17 @@ bot.on('message', ctx => {
         return;
     }
 
-    let real = parts[0];
+    let real = Dubito.reverseSeedConversion(parts[0]);
 
-    if(!Dubito.DubitoGame.is_card_valid(real)) {
+    if (!game.is_card_valid(real)) {
         ctx.reply("Invalid card");
         return;
     }
 
     let declared = null;
 
-    if(parts.length === 1) {
-        if(game.last_declared_card == null) {
+    if (parts.length === 1) {
+        if (game.last_declared_card == null) {
             declared = Dubito.DubitoGame.get_number(real);
         } else {
             declared = game.last_declared_card;
