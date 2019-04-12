@@ -1,55 +1,22 @@
-const all_cards = ["A1",
-    "A2",
-    "A3",
-    "A4",
-    "A5",
-    "A6",
-    "A7",
-    "A8",
-    "A9",
-    "A10",
-    "A11",
-    "A12",
-    "A13",
-    "B1",
-    "B2",
-    "B3",
-    "B4",
-    "B5",
-    "B6",
-    "B7",
-    "B8",
-    "B9",
-    "B10",
-    "B11",
-    "B12",
-    "B13",
-    "C1",
-    "C2",
-    "C3",
-    "C4",
-    "C5",
-    "C6",
-    "C7",
-    "C8",
-    "C9",
-    "C10",
-    "C11",
-    "C12",
-    "C13",
-    "D1",
-    "D2",
-    "D3",
-    "D4",
-    "D5",
-    "D6",
-    "D7",
-    "D8",
-    "D9",
-    "D10",
-    "D11",
-    "D12",
-    "D13"];
+const deckSize = {
+    2: 16,
+    3: 36,
+    4: 40,
+    5: 52
+};
+
+const seedConversion = {
+    "A": String.fromCharCode(0x2660),
+    "B": String.fromCharCode(0x2665),
+    "C": String.fromCharCode(0x2666),
+    "D": String.fromCharCode(0x2663)
+};
+
+function handToOutput(hand) {
+    hand.sort();
+
+    return hand.map(c => cardToOutput(c))
+}
 
 class Player {
     constructor(name, chatid) {
@@ -59,10 +26,34 @@ class Player {
     }
 }
 
+function cardToOutput(card) {
+    let suit = seedConversion[card[0]];
+
+    let number = card.substring(1);
+
+    return number + suit;
+}
+
+function createDeck(nPlayers) {
+    let cards = [];
+
+    let number = nPlayers <= 5 ? deckSize[nPlayers] : nPlayers[5];
+
+    for (let i = 1; i < number / 4; i++) {
+        cards.push("A" + i);
+        cards.push("B" + i);
+        cards.push("C" + i);
+        cards.push("D" + i);
+    }
+
+    return cards;
+}
+
 class DubitoGame {
 
     constructor() {
         this.players = []; // type: Player
+        this.cards = [];
         this.turn = -1;
         this.last_table_card = null;
         this.last_declared_card = null;
@@ -80,10 +71,12 @@ class DubitoGame {
             throw new Error("Can't play with 0 players");
         }
 
-        const cards = Array.from(all_cards);
+        this.cards = createDeck(this.players.length);
+
+        const cards = Array.from(this.cards);
         cards.sort((a, b) => 0.5 - Math.random());
 
-        const cards_per_player = Math.floor(all_cards.length / this.players.length);
+        const cards_per_player = Math.floor(this.cards.length / this.players.length);
 
 
         for (let player of this.players) {
@@ -117,7 +110,7 @@ class DubitoGame {
 
     dubita() {
 
-        let result = DubitoGame.get_number(this.last_table_card) !== this.last_declared_card
+        let result = DubitoGame.get_number(this.last_table_card) !== this.last_declared_card;
 
         if (result) {
 
@@ -146,8 +139,8 @@ class DubitoGame {
         return card.substring(1);
     }
 
-    static is_card_valid(card) {
-        return all_cards.includes(card);
+    is_card_valid(card) {
+        return this.cards.includes(card);
     }
 
     gioca(real, declared) {
@@ -155,7 +148,7 @@ class DubitoGame {
             throw new Error("You can't play a card you don't have")
         }
 
-        if(this.last_declared_card !== null && declared !== this.last_declared_card) {
+        if (this.last_declared_card !== null && declared !== this.last_declared_card) {
             throw new Error("You must play a card with the same number of the last one!")
         }
 
@@ -169,5 +162,5 @@ class DubitoGame {
 }
 
 module.exports = {
-    DubitoGame, Player
+    DubitoGame, Player, cardToOutput, handToOutput
 };

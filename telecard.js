@@ -1,5 +1,7 @@
 "use strict";
 const Telegraf = require('telegraf');
+const Extra = require('telegraf/extra');
+const Markup = require('telegraf/markup');
 const Dubito = require('./dubito.js');
 const util = require("util");
 const fs = require("fs");
@@ -109,7 +111,7 @@ bot.command('startgame', ctx => {
 
     for (let player of game.players) {
         bot.telegram.sendMessage(player.chat_id,
-            util.format("Game is started!\nYour hand is: %s\nIt's %s's turn, wait for your turn to play", player.hand, game.player_turn().player_name));
+            util.format("Game is started!\nYour hand is: %s\nIt's %s's turn, wait for your turn to play", Dubito.handToOutput(player.hand), game.player_turn().player_name));
 
     }
 
