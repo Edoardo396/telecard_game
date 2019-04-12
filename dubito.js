@@ -102,7 +102,6 @@ class DubitoGame {
         this.last_declared_card = null;
         this.banco = [];
         this.game_admin = null;
-        this.new_turn = null
     }
 
     player_turn() {
@@ -134,8 +133,6 @@ class DubitoGame {
 
         }
 
-        this.last_declared_card = null;
-
         return result
     }
 
@@ -147,6 +144,10 @@ class DubitoGame {
 
     static get_number(card) {
         return card.substring(1);
+    }
+
+    static is_card_valid(card) {
+        return all_cards.includes(card);
     }
 
     gioca(real, declared) {

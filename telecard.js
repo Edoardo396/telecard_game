@@ -43,6 +43,7 @@ game.new_turn = function () {
 
 bot.start(ctx => {
     ctx.reply("Benvenuto in Telecard! Per iniziare a giocare digita /join tuonome")
+    send_help(ctx.chat.id)
 });
 
 bot.command('gameinfo', ctx => {
@@ -61,22 +62,33 @@ bot.command('join', (ctx) => {
         return;
     }
 
+    if(game.get_player(ctx.chat.id) != null) {
+        ctx.reply("You are already in the game");
+        return;
+    }
+
     let parts = ctx.message.text.split(' ');
 
     let name = parts.length === 2 ? parts[1] : nicknames[Math.round(Math.random() * (nicknames.length - 1))];
 
-    let me = new Dubito.Player(name, ctx.chat.id);
+    let me = new Dubito.Player(name.replace("\r", ""), ctx.chat.id);
     game.players.push(me);
 
+
+    ctx.reply(util.format("Welcome to the game %s! \nConnected players: %s\nWait for the administrator to start the game.", me.player_name, game.players.map(p => p.player_name)));
 
     if (game.game_admin == null) {
         ctx.reply("You're the first player, wait for others to connect and then run /startgame");
         game.game_admin = me;
     }
 
-    if (me !== game.game_admin) {
-        bot.telegram.sendMessage(game.game_admin.chat_id, me.player_name + " joined the game");
-    }
+    game._foreach_player(p => {
+        if(p !== me) {
+            bot.telegram.sendMessage(p.chat_id, util.format("%s joined the game.\nConnected players: %s", me.player_name, game.players.map(pl => pl.player_name)));
+        }
+    });
+
+    console.log(me.player_name + " joined the game");
 });
 
 bot.command('startgame', ctx => {
@@ -164,6 +176,11 @@ bot.command('help', ctx => {
 bot.on('message', ctx => {
     let me = game.get_player(ctx.chat.id);
 
+    if (ctx.message.text.toString()[0] === "/") {
+        ctx.reply("Invalid command");
+        return;
+    }
+
     if (game.turn === -1) {
         ctx.reply("Game is not started.");
         return;
@@ -174,14 +191,21 @@ bot.on('message', ctx => {
         return;
     }
 
-    if (ctx.message.text.toLowerCase() === "doubt it") {
+    if (ctx.message.text.toLowerCase() === "doubt") {
+        if(game.banco.length === 0) {
+            ctx.reply("Cannot doubt first turn");
+            return;
+        }
+
 
         if (game.dubita()) {
             game._foreach_player(p => {
                 bot.telegram.sendMessage(p.chat_id, util.format("%s doubted right, last card was %s and not %s!\n%s has now %d card in hands!",
-                    me.player_name, game.last_table_card, game.last_declared_card, game.last_player_turn().player_name, game.last_player_turn().hand.length));
-                bot.telegram.sendMessage(p.chat_id, "It is " + me.player_name + "'s turn");
+                    me.player_name, game.last_table_card, game.last_declared_card, game.last_player_turn().player_name, game.last_player_turn().hand.length)).then(() => {
+                    bot.telegram.sendMessage(p.chat_id, "It is " + me.player_name + "'s turn");
+                });
             });
+            game.last_declared_card = null;
         } else {
             game._foreach_player(p => {
                 bot.telegram.sendMessage(p.chat_id, util.format("%s doubted wrong, last card was effectively %s!\n%s has now %d card in hands!",
@@ -189,26 +213,52 @@ bot.on('message', ctx => {
             });
         }
 
-    } else {
-        let parts = ctx.message.text.split(' ');
-
-        let real = parts[1];
-        let expect = parts[2];
-
-        try {
-            game.gioca(real, expect)
-        } catch (e) {
-            ctx.reply(e.message);
-            print_debug();
-            return;
-        }
-
-        me.hand.splice(me.hand.indexOf(real), 1);
-
-        game._foreach_player(p => {
-            bot.telegram.sendMessage(p.chat_id, util.format("%s played %s\nThere are %d cards on the table", me.player_name, expect, game.banco.length))
-        });
+        print_debug();
+        return;
     }
+
+    let parts = ctx.message.text.split(' ');
+
+    if (parts.length > 2) {
+        ctx.reply("Invalid play message");
+        return;
+    }
+
+    let real = parts[0];
+
+    if(!Dubito.DubitoGame.is_card_valid(real)) {
+        ctx.reply("Invalid card");
+        return;
+    }
+
+    let declared = null;
+
+    if(parts.length === 1) {
+        if(game.last_declared_card == null) {
+            declared = Dubito.DubitoGame.get_number(real);
+        } else {
+            declared = game.last_declared_card;
+        }
+    } else {
+        declared = parts[1];
+    }
+
+    try {
+        console.log(util.format("%s playing %s as %d\n", me.player_name, real, declared));
+        game.gioca(real, declared)
+    } catch (e) {
+        ctx.reply(e.message);
+        console.log("Command Failed");
+        print_debug();
+        return;
+    }
+
+    me.hand.splice(me.hand.indexOf(real), 1);
+
+    game._foreach_player(p => {
+        bot.telegram.sendMessage(p.chat_id, util.format("%s played %s\nThere are %d cards on the table", me.player_name, declared, game.banco.length))
+    });
+
 
     print_debug();
 });
@@ -225,7 +275,6 @@ function print_debug() {
     }
 
     console.log("\n");
-
 }
 
 bot.launch();
