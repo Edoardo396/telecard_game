@@ -1,9 +1,9 @@
 const _ = require("underscore/underscore");
 
 const deckSize = {
+    1: 12,
     2: 16,
     3: 36,
-    4: 40,
     5: 52
 };
 
@@ -19,7 +19,7 @@ function reverseSeedConversion(value) {
 
     let converted;
 
-    if(str === "D") {
+    if (str === "D") {
         converted = "C"
     } else if (str === "C") {
         converted = "A"
@@ -61,7 +61,7 @@ function createDeck(nPlayers) {
 
     let number = nPlayers <= 5 ? deckSize[nPlayers] : nPlayers[5];
 
-    for (let i = 1; i < number / 4; i++) {
+    for (let i = 1; i <= number / 4; i++) {
         cards.push("A" + i);
         cards.push("B" + i);
         cards.push("C" + i);
@@ -98,13 +98,9 @@ class DubitoGame {
         const cards = Array.from(this.cards);
         cards.sort((a, b) => 0.5 - Math.random());
 
-        const cards_per_player = Math.floor(this.cards.length / this.players.length);
-
-
-        for (let player of this.players) {
-            for (let i = 0; i < cards_per_player; i++) {
-                player.hand.push(cards.pop())
-            }
+        for (let i = 0; i < cards.length; ++i) {
+            let player = i % this.players.length;
+            this.players[player].hand.push(cards[i]);
         }
 
         this.turn = 0;
@@ -136,15 +132,14 @@ class DubitoGame {
 
         if (result) {
 
-            this.last_player_turn().hand.push(this.banco);
+            this.last_player_turn().hand.concat(this.banco);
             this.banco = [];
 
         } else {
 
-            this.player_turn().hand.push(this.banco);
+            this.player_turn().hand.concat(this.banco);
             this.banco = [];
             this.turn++;
-            this.new_turn();
 
         }
 
@@ -179,7 +174,6 @@ class DubitoGame {
         this.last_table_card = real;
 
         this.turn++;
-        this.new_turn()
     }
 }
 

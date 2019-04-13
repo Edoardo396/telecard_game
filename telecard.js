@@ -11,6 +11,8 @@ const game = new Dubito.DubitoGame();
 
 const db = require("tedious");
 
+const CARDS_PER_ROW = 7;
+
 // const Connection = require('tedious').Connection;
 //
 // const config = {
@@ -35,8 +37,12 @@ const bot = new Telegraf("817731928:AAGYI67d8NIbN0T4g6zEOdKf52o1YFMIfX4");
 function getButtonsArray(hand) {
     let arr = [];
 
-    for (let card of hand) {
-        arr.push(Dubito.cardToOutput(card))
+    for (let i = 0; i < hand.length; ++i) {
+        let card = Dubito.cardToOutput(hand[i]);
+        if (arr[Math.floor(i / CARDS_PER_ROW)] === undefined) {
+            arr.push([]);
+        }
+        arr[Math.floor(i / CARDS_PER_ROW)].push(card)
     }
 
     return arr;
@@ -46,12 +52,11 @@ function getButtonsArray(hand) {
 game.new_turn = function () {
     for (let player of game.players) {
         if (player === game.player_turn()) {
-            bot.telegram.sendMessage(player.chat_id, "It's your turn", Markup.keyboard([
-                getButtonsArray(player.hand),
-                ["Doubt"]
 
+            let btns = getButtonsArray(player.hand);
+            btns.push(["Doubt"]);
 
-            ]).oneTime().resize().extra());
+            bot.telegram.sendMessage(player.chat_id, "It's your turn", Markup.keyboard(btns).resize().extra());
         } else {
             bot.telegram.sendMessage(player.chat_id, "It's " + game.player_turn().player_name + "'s turn");
         }
@@ -61,6 +66,25 @@ game.new_turn = function () {
 bot.start(ctx => {
     ctx.reply("Benvenuto in Telecard! Per iniziare a giocare digita /join tuonome")
     send_help(ctx.chat.id)
+});
+
+bot.command('keyboard', ctx => {
+    let me = game.get_player(ctx.chat.id);
+
+    if (game.turn === -1) {
+        ctx.reply("Game not started, either /join or ask the administrator to start the game");
+        return;
+    }
+
+    if (game.player_turn() !== me) {
+        ctx.reply("It's not your turn");
+        return;
+    }
+
+    let btns = getButtonsArray(me.hand);
+    btns.push(["Doubt"]);
+
+    bot.telegram.sendMessage(me.chat_id, "", Markup.keyboard(btns).oneTime().resize().extra());
 });
 
 bot.command('gameinfo', ctx => {
@@ -209,26 +233,42 @@ bot.on('message', ctx => {
         return;
     }
 
+    if (ctx.message.text.toLowerCase() === "doubt" && game.banco.length === 0) {
+        ctx.reply("Cannot doubt first turn");
+        return;
+    }
+
+    ctx.reply(".", Extra.markup((m) => m.removeKeyboard(true)));
+
     if (ctx.message.text.toLowerCase() === "doubt") {
-        if (game.banco.length === 0) {
-            ctx.reply("Cannot doubt first turn");
-            return;
-        }
-
-
         if (game.dubita()) {
-            game._foreach_player(p => {
-                bot.telegram.sendMessage(p.chat_id, util.format("%s doubted right, last card was %s and not %s!\n%s has now %d card in hands!",
-                    me.player_name, Dubito.cardToOutput(game.last_table_card), Dubito.cardToOutput(game.last_declared_card), game.last_player_turn().player_name, game.last_player_turn().hand.length)).then(() => {
-                    bot.telegram.sendMessage(p.chat_id, "It is " + me.player_name + "'s turn");
-                });
+            let send_promises = [];
+
+
+            for (let player of game.players) {
+
+                send_promises.push(bot.telegram.sendMessage(player.chat_id, util.format("%s doubted right, last card was %s and not a %s!\n%s has now %d card in hands!",
+                    me.player_name, Dubito.cardToOutput(game.last_table_card), game.last_declared_card, game.last_player_turn().player_name, game.last_player_turn().hand.length))
+
+                    .then(v => {
+                    bot.telegram.sendMessage(player.chat_id, "It is " + me.player_name + "'s turn");
+
+                }));
+            }
+
+
+            Promise.all(send_promises).then(val => {
+                game.last_declared_card = null;
+                game.new_turn();
             });
-            game.last_declared_card = null;
+
         } else {
             game._foreach_player(p => {
                 bot.telegram.sendMessage(p.chat_id, util.format("%s doubted wrong, last card was effectively %s!\n%s has now %d card in hands!",
                     me.player_name, Dubito.cardToOutput(game.last_table_card), me.player_name, me.hand.length))
             });
+
+            game.new_turn();
         }
 
         print_debug();
@@ -277,7 +317,7 @@ bot.on('message', ctx => {
         bot.telegram.sendMessage(p.chat_id, util.format("%s played %s\nThere are %d cards on the table", me.player_name, declared, game.banco.length))
     });
 
-
+    game.new_turn();
     print_debug();
 });
 
