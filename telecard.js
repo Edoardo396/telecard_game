@@ -13,25 +13,6 @@ const db = require("tedious");
 
 const CARDS_PER_ROW = 7;
 
-// const Connection = require('tedious').Connection;
-//
-// const config = {
-//     server: '192.168.192.132',
-//     authentication: {
-//         type: 'default',
-//         options: {
-//             userName: 'sa',
-//             password: ''
-//         }
-//     }
-// };
-//
-// const connect = new Connection(config);
-//
-// connect.on('connect', function (err) {
-//     console.log("Connesso!");
-// });
-
 const bot = new Telegraf("817731928:AAGYI67d8NIbN0T4g6zEOdKf52o1YFMIfX4");
 
 function getButtonsArray(hand) {
@@ -50,6 +31,29 @@ function getButtonsArray(hand) {
 
 
 game.new_turn = function () {
+
+    // check for victory conditions
+
+    for (let i = 0; i<game.players.length;++i) {
+        let player = game.players[i];
+        if(player.hand.length === 0) {
+            bot.telegram.sendMessage(player.chat_id, "You won! You will be removed from the game");
+            game.players.splice(i, 1);
+
+            game._foreach_player(p => {
+               if(player !== p)
+                   bot.telegram.sendMessage(p.chat_id, util.format("%s won!", player.player_name));
+            });
+        }
+    }
+
+
+    if(game.players.length === 0) {
+        game.gameReset();
+        return;
+    }
+
+
     for (let player of game.players) {
         if (player === game.player_turn()) {
 
@@ -110,17 +114,21 @@ bot.command('join', (ctx) => {
 
     let parts = ctx.message.text.split(' ');
 
-    let name = parts.length === 2 ? parts[1] : nicknames[Math.round(Math.random() * (nicknames.length - 1))];
+    let name = parts.length === 2 ? parts[1] : ctx.from.username;
+
+    if(name === undefined) name = nicknames[Math.round(Math.random() * nicknames.length)];
 
     let me = new Dubito.Player(name.replace("\r", ""), ctx.chat.id);
     game.players.push(me);
 
 
-    ctx.reply(util.format("Welcome to the game %s! \nConnected players: %s\nWait for the administrator to start the game.", me.player_name, game.players.map(p => p.player_name)));
+    ctx.reply(util.format("Welcome to the game %s! \nConnected players: %s", me.player_name, game.players.map(p => p.player_name)));
 
     if (game.game_admin == null) {
         ctx.reply("You're the first player, wait for others to connect and then run /startgame");
         game.game_admin = me;
+    } else {
+        ctx.reply("Wait for the administrator to start the game.")
     }
 
     game._foreach_player(p => {
@@ -202,17 +210,7 @@ bot.command('debuginfo', ctx => {
 });
 
 function send_help(id) {
-    bot.telegram.sendMessage(id, "Entra nalla partita con /join $nome, aspetta che la partita inizi dopodichè segui il gioco utilizzando i messagi che il bot invierà,\n" +
-        "Quando è il tuo turno puoi dubitare inviando \"doubt it\" oppure posare una carta inviando \"play $real $expected\",\n" +
-        "con $real indichi la carta che poserai veramente, con $expected quella che invece dici di aver posato (solo il numero)\n" +
-        "\n" +
-        "\n" +
-        "Commands:\n" +
-        "/join $yourname Entra in gioco, specificando il tuo nome come parametro\n" +
-        "/startgame Inizia la partita (solo admin)\n" +
-        "/hand Ottieni le carte che hai in mano\n" +
-        "/stopgame Chiudi la partita (solo admin)\n" +
-        "/help Ottieni questa schermata")
+    bot.telegram.sendMessage(id, fs.readFileSync("./game_help.txt").toString())
 }
 
 bot.command('help', ctx => {

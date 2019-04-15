@@ -1,8 +1,13 @@
 const _ = require("underscore/underscore");
 
+// const deckSize = {
+//     2: 16,
+//     3: 36,
+//     5: 52
+// };
+
 const deckSize = {
-    1: 12,
-    2: 16,
+    2: 6,
     3: 36,
     5: 52
 };
@@ -132,12 +137,12 @@ class DubitoGame {
 
         if (result) {
 
-            this.last_player_turn().hand.concat(this.banco);
+            this.last_player_turn().hand = this.last_player_turn().hand.concat(this.banco);
             this.banco = [];
 
         } else {
 
-            this.player_turn().hand.concat(this.banco);
+            this.player_turn().hand = this.player_turn().hand.concat(this.banco);
             this.banco = [];
             this.turn++;
 
