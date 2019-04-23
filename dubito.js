@@ -79,14 +79,9 @@ function createDeck(nPlayers) {
 class DubitoGame {
 
     constructor() {
-        this.players = []; // type: Player
         this.cards = [];
-        this.turn = -1;
-        this.last_table_card = null;
-        this.last_declared_card = null;
-        this.banco = [];
-        this.game_admin = null;
-        this.new_turn = null
+        this.new_turn = null;
+        this.gameReset()
     }
 
     get_player(chat_id) {
@@ -109,6 +104,7 @@ class DubitoGame {
         }
 
         this.turn = 0;
+        this.start_players_number = this.players.length;
     }
 
     gameReset() {
@@ -118,6 +114,8 @@ class DubitoGame {
         this.last_declared_card = null;
         this.banco = [];
         this.game_admin = null;
+        this.game_id = null;
+        this.start_players_number = null;
     }
 
     player_turn() {

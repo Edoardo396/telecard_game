@@ -46,8 +46,15 @@ game.new_turn = function () {
     for (let i = 0; i < game.players.length; ++i) {
         let player = game.players[i];
         if (player.hand.length === 0) {
-            bot.telegram.sendMessage(player.chat_id, "You won! You will be removed from the game");
+
+            let player_position = game.start_players_number - game.players.length + 1;
+
+            bot.telegram.sendMessage(player.chat_id, util.format("You won! You will be removed from the game. You are %d in position!", player_position));
             game.players.splice(i, 1);
+
+            client.query(
+                'update "fcard_bot"."Users_Games" set position=$1 where game_id = $2 and user_id=(select user_id from "Users" where chat_id=$3)',
+                [player_position, game.game_id, player.chat_id]);
 
             game._foreach_player(p => {
                 if (player !== p)
@@ -56,8 +63,11 @@ game.new_turn = function () {
         }
     }
 
-
-    if (game.players.length === 0) {
+    if (game.players.length === 1) {
+        bot.telegram.sendMessage(game.players[0].chat_id, "You lost! Game is finished");
+        client.query(
+            'update "fcard_bot"."Users_Games" set position=$1 where game_id = $2 and user_id=(select user_id from "Users" where chat_id=$3)',
+            [game.start_players_number, game.game_id, game.players[0].chat_id]);
         game.gameReset();
         return;
     }
@@ -101,7 +111,7 @@ bot.command('keyboard', async (ctx) => {
 });
 
 bot.command('gameinfo', async (ctx) => {
-    ctx.reply("Connected players: " + game.players.map(element => element.player_name))
+    ctx.reply("Connected players: " + game.players.map(element => element.player_name));
 
 
     if (game.turn > -1) {
@@ -124,14 +134,13 @@ bot.command('join', async (ctx) => {
     let parts = ctx.message.text.split(' ');
 
     const res = await client.query('select * from "Users" where chat_id = $1', [ctx.chat.id]);
-    console.log(res);
 
     let name;
 
 
-    if(res.rowCount > 0) {
-        name = parts.length === 2 ? parts[1] : rows[0].nickname;
-        await ctx.reply(util.format("Welcome back %s! Your first visit was %s", me.player_name,res.rows[0].first_seen))
+    if (res.rowCount > 0) {
+        name = parts.length === 2 ? parts[1] : res.rows[0].nickname;
+        await ctx.reply(util.format("Welcome back %s! Your first visit was %d/%d/%d", name, res.rows[0].first_seen.getDate(), res.rows[0].first_seen.getMonth(), res.rows[0].first_seen.getFullYear()))
     } else {
         name = parts.length === 2 ? parts[1] : ctx.from.username;
         await ctx.reply("Welcome to fcard_bot!");
@@ -140,7 +149,7 @@ bot.command('join', async (ctx) => {
     }
 
     if (name === undefined) {
-        await ctx.reply("You must set a nickname in your telegram settings or specify a nickname in the join command to play")
+        await ctx.reply("You must set a nickname in your telegram settings or specify a nickname in the join command to play");
         return;
     }
 
@@ -187,9 +196,19 @@ bot.command('startgame', async (ctx) => {
 
     game.start();
 
+    const result = await client.query('insert into "fcard_bot"."Games"(timestamp) values ($1) returning game_id', [new Date().toISOString()]);
+
+    game.game_id = result.rows[0].game_id;
+
+
     for (let player of game.players) {
+        await client.query(
+            'insert into "fcard_bot"."Users_Games"(user_id, game_id, position) select user_id, $1, NULL from "Users" where chat_id=$2',
+            [game.game_id, player.chat_id]);
+
         bot.telegram.sendMessage(player.chat_id,
             util.format("Game is started!\nYour hand is: %s\nIt's %s's turn, wait for your turn to play", Dubito.handToOutput(player.hand), game.player_turn().player_name));
+
 
     }
 
@@ -355,6 +374,7 @@ bot.on('message', async (ctx) => {
 });
 
 function print_debug() {
+    console.log("This is game number: " + game.game_id);
     console.log("Turn:" + game.turn);
     console.log("Players:" + game.players.map(p => p.player_name));
     console.log("Last table card:" + game.last_table_card);
