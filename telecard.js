@@ -1,4 +1,5 @@
 "use strict";
+
 const Telegraf = require('telegraf');
 const Extra = require('telegraf/extra');
 const Markup = require('telegraf/markup');
@@ -6,10 +7,18 @@ const Dubito = require('./dubito.js');
 const util = require("util");
 const fs = require("fs");
 
+const {Client} = require('pg');
+
+const client = new Client({
+    host: '10.0.1.0',
+    port: 5432,
+    user: 'postgres',
+    password: '',
+    database: "fcard_bot"
+});
+
 const nicknames = fs.readFileSync("./random_nicks.txt").toString().split("\n");
 const game = new Dubito.DubitoGame();
-
-const db = require("tedious");
 
 const CARDS_PER_ROW = 7;
 
@@ -34,21 +43,21 @@ game.new_turn = function () {
 
     // check for victory conditions
 
-    for (let i = 0; i<game.players.length;++i) {
+    for (let i = 0; i < game.players.length; ++i) {
         let player = game.players[i];
-        if(player.hand.length === 0) {
+        if (player.hand.length === 0) {
             bot.telegram.sendMessage(player.chat_id, "You won! You will be removed from the game");
             game.players.splice(i, 1);
 
             game._foreach_player(p => {
-               if(player !== p)
-                   bot.telegram.sendMessage(p.chat_id, util.format("%s won!", player.player_name));
+                if (player !== p)
+                    bot.telegram.sendMessage(p.chat_id, util.format("%s won!", player.player_name));
             });
         }
     }
 
 
-    if(game.players.length === 0) {
+    if (game.players.length === 0) {
         game.gameReset();
         return;
     }
@@ -67,12 +76,12 @@ game.new_turn = function () {
     }
 };
 
-bot.start(ctx => {
-    ctx.reply("Benvenuto in Telecard! Per iniziare a giocare digita /join tuonome")
+bot.start(async (ctx) => {
+    await ctx.reply("Benvenuto in Telecard! Per iniziare a giocare digita /join tuonome");
     send_help(ctx.chat.id)
 });
 
-bot.command('keyboard', ctx => {
+bot.command('keyboard', async (ctx) => {
     let me = game.get_player(ctx.chat.id);
 
     if (game.turn === -1) {
@@ -91,7 +100,7 @@ bot.command('keyboard', ctx => {
     bot.telegram.sendMessage(me.chat_id, "", Markup.keyboard(btns).oneTime().resize().extra());
 });
 
-bot.command('gameinfo', ctx => {
+bot.command('gameinfo', async (ctx) => {
     ctx.reply("Connected players: " + game.players.map(element => element.player_name))
 
 
@@ -101,7 +110,7 @@ bot.command('gameinfo', ctx => {
     }
 });
 
-bot.command('join', (ctx) => {
+bot.command('join', async (ctx) => {
     if (game.turn !== -1) {
         ctx.reply("Game already started, try again later");
         return;
@@ -114,11 +123,29 @@ bot.command('join', (ctx) => {
 
     let parts = ctx.message.text.split(' ');
 
-    let name = parts.length === 2 ? parts[1] : ctx.from.username;
+    const res = await client.query('select * from "Users" where chat_id = $1', [ctx.chat.id]);
+    console.log(res);
 
-    if(name === undefined) name = nicknames[Math.round(Math.random() * nicknames.length)];
+    let name;
+
+
+    if(res.rowCount > 0) {
+        name = parts.length === 2 ? parts[1] : rows[0].nickname;
+        await ctx.reply(util.format("Welcome back %s! Your first visit was %s", me.player_name,res.rows[0].first_seen))
+    } else {
+        name = parts.length === 2 ? parts[1] : ctx.from.username;
+        await ctx.reply("Welcome to fcard_bot!");
+
+        await client.query('insert into "Users"(chat_id, nickname, first_seen) values ($1, $2, $3)', [ctx.chat.id, name, new Date().toISOString()])
+    }
+
+    if (name === undefined) {
+        await ctx.reply("You must set a nickname in your telegram settings or specify a nickname in the join command to play")
+        return;
+    }
 
     let me = new Dubito.Player(name.replace("\r", ""), ctx.chat.id);
+
     game.players.push(me);
 
 
@@ -140,10 +167,10 @@ bot.command('join', (ctx) => {
     console.log(me.player_name + " joined the game");
 });
 
-bot.command('startgame', ctx => {
+bot.command('startgame', async (ctx) => {
     let me = game.get_player(ctx.chat.id);
 
-    if(game.turn > -1) {
+    if (game.turn > -1) {
         ctx.reply("Game is already started. Ask admin to stop it first");
         return;
     }
@@ -171,8 +198,7 @@ bot.command('startgame', ctx => {
     print_debug();
 });
 
-
-bot.command('stopgame', ctx => {
+bot.command('stopgame', async (ctx) => {
     let me = game.get_player(ctx.chat.id);
 
     if (me !== game.game_admin) {
@@ -187,7 +213,7 @@ bot.command('stopgame', ctx => {
     }
 });
 
-bot.command('hand', ctx => {
+bot.command('hand', async (ctx) => {
     let me = game.get_player(ctx.chat.id);
 
     if (me === undefined || game.turn === -1) {
@@ -198,7 +224,7 @@ bot.command('hand', ctx => {
     ctx.reply(util.format("Your hand is: %s \n(%d cards)", Dubito.handToOutput(me.hand), me.hand.length));
 });
 
-bot.command('debuginfo', ctx => {
+bot.command('debuginfo', async (ctx) => {
     print_debug();
     ctx.reply("Table: " + game.banco);
     ctx.reply("Turn: " + game.turn);
@@ -209,15 +235,11 @@ bot.command('debuginfo', ctx => {
     }
 });
 
-function send_help(id) {
-    bot.telegram.sendMessage(id, fs.readFileSync("./game_help.txt").toString())
-}
-
-bot.command('help', ctx => {
+bot.command('help', async (ctx) => {
     send_help(ctx.chat.id);
 });
 
-bot.on('message', ctx => {
+bot.on('message', async (ctx) => {
     let me = game.get_player(ctx.chat.id);
 
     if (ctx.message.text.toString()[0] === "/") {
@@ -253,9 +275,9 @@ bot.on('message', ctx => {
                     me.player_name, Dubito.cardToOutput(game.last_table_card), game.last_declared_card, game.last_player_turn().player_name, game.last_player_turn().hand.length))
 
                     .then(v => {
-                    bot.telegram.sendMessage(player.chat_id, "It is " + me.player_name + "'s turn");
+                        bot.telegram.sendMessage(player.chat_id, "It is " + me.player_name + "'s turn");
 
-                }));
+                    }));
             }
 
 
@@ -348,6 +370,16 @@ function print_debug() {
     console.log("\n");
 }
 
-bot.launch();
+function send_help(id) {
+    bot.telegram.sendMessage(id, fs.readFileSync("./game_help.txt").toString())
+}
+
+client.connect().then(() => {
+
+    client.query("set search_path to public,fcard_bot");
+    bot.launch();
+
+
+});
 
 

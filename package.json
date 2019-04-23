@@ -9,10 +9,12 @@
   "author": "edoardo",
   "license": "ISC",
   "dependencies": {
+    "knex": "^0.16.5",
     "node-telegram-bot-api": "^0.30.0",
     "nodeunit": "^0.11.3",
-    "tedious": "^6.1.0",
-    "telegraf": "^3.28.0",
+    "pg": "^7.10.0",
+    "tedious": "^6.1.1",
+    "telegraf": "^3.29.0",
     "underscore": "^1.9.1"
   }
 }
