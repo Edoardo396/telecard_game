@@ -14,10 +14,9 @@ const client = new Client({
     port: 5432,
     user: 'postgres',
     password: '',
-    database: "fcard_bot"
+    database: "fcard_game"
 });
 
-const nicknames = fs.readFileSync("./random_nicks.txt").toString().split("\n");
 const game = new Dubito.DubitoGame();
 
 const CARDS_PER_ROW = 7;
@@ -53,7 +52,7 @@ game.new_turn = function () {
             game.players.splice(i, 1);
 
             client.query(
-                'update "fcard_bot"."Users_Games" set position=$1 where game_id = $2 and user_id=(select user_id from "Users" where chat_id=$3)',
+                'update "fcard_game"."users_games" set position=$1 where game_id = $2 and user_id=(select user_id from "users" where chat_id=$3)',
                 [player_position, game.game_id, player.chat_id]);
 
             game._foreach_player(p => {
@@ -66,7 +65,7 @@ game.new_turn = function () {
     if (game.players.length === 1) {
         bot.telegram.sendMessage(game.players[0].chat_id, "You lost! Game is finished");
         client.query(
-            'update "fcard_bot"."Users_Games" set position=$1 where game_id = $2 and user_id=(select user_id from "Users" where chat_id=$3)',
+            'update "fcard_game"."users_games" set position=$1 where game_id = $2 and user_id=(select user_id from "users" where chat_id=$3)',
             [game.start_players_number, game.game_id, game.players[0].chat_id]);
         game.gameReset();
         return;
@@ -95,12 +94,12 @@ bot.command('keyboard', async (ctx) => {
     let me = game.get_player(ctx.chat.id);
 
     if (game.turn === -1) {
-        ctx.reply("Game not started, either /join or ask the administrator to start the game");
+        await ctx.reply("Game not started, either /join or ask the administrator to start the game");
         return;
     }
 
     if (game.player_turn() !== me) {
-        ctx.reply("It's not your turn");
+        await ctx.reply("It's not your turn");
         return;
     }
 
@@ -108,6 +107,27 @@ bot.command('keyboard', async (ctx) => {
     btns.push(["Doubt"]);
 
     bot.telegram.sendMessage(me.chat_id, "", Markup.keyboard(btns).oneTime().resize().extra());
+});
+
+bot.command('leave', async (ctx) => {
+    let me = game.get_player(ctx.chat.id);
+
+
+    if (game.turn > -1) {
+        await ctx.reply("You cannot leave a game that is already started. Please ask the administrator to run /stopgame");
+        return;
+    }
+
+    game._foreach_player(async p => {
+        if (p !== me) {
+            await bot.telegram.sendMessage(p.chat_id, me.player_name + " has left the game");
+        }
+    });
+
+    bot.telegram.sendMessage(me.chat_id, "You left the game");
+
+
+    game.players.splice(game.players.indexOf(me), 1);
 });
 
 bot.command('gameinfo', async (ctx) => {
@@ -133,7 +153,7 @@ bot.command('join', async (ctx) => {
 
     let parts = ctx.message.text.split(' ');
 
-    const res = await client.query('select * from "Users" where chat_id = $1', [ctx.chat.id]);
+    const res = await client.query('select * from "users" where chat_id = $1', [ctx.chat.id]);
 
     let name;
 
@@ -143,14 +163,15 @@ bot.command('join', async (ctx) => {
         await ctx.reply(util.format("Welcome back %s! Your first visit was %d/%d/%d", name, res.rows[0].first_seen.getDate(), res.rows[0].first_seen.getMonth(), res.rows[0].first_seen.getFullYear()))
     } else {
         name = parts.length === 2 ? parts[1] : ctx.from.username;
+
+        if (name === undefined) {
+            await ctx.reply("You must set a nickname in your telegram settings or specify a nickname in the join command to play");
+            return;
+        }
+
         await ctx.reply("Welcome to fcard_bot!");
 
-        await client.query('insert into "Users"(chat_id, nickname, first_seen) values ($1, $2, $3)', [ctx.chat.id, name, new Date().toISOString()])
-    }
-
-    if (name === undefined) {
-        await ctx.reply("You must set a nickname in your telegram settings or specify a nickname in the join command to play");
-        return;
+        await client.query('insert into "users"(chat_id, nickname, first_seen) values ($1, $2, $3)', [ctx.chat.id, name, new Date().toISOString()])
     }
 
     let me = new Dubito.Player(name.replace("\r", ""), ctx.chat.id);
@@ -196,14 +217,14 @@ bot.command('startgame', async (ctx) => {
 
     game.start();
 
-    const result = await client.query('insert into "fcard_bot"."Games"(timestamp) values ($1) returning game_id', [new Date().toISOString()]);
+    const result = await client.query('insert into "fcard_game"."games"(timestamp) values ($1) returning game_id', [new Date().toISOString()]);
 
     game.game_id = result.rows[0].game_id;
 
 
     for (let player of game.players) {
         await client.query(
-            'insert into "fcard_bot"."Users_Games"(user_id, game_id, position) select user_id, $1, NULL from "Users" where chat_id=$2',
+            'insert into "fcard_game"."users_games"(user_id, game_id, position) select user_id, $1, NULL from "users" where chat_id=$2',
             [game.game_id, player.chat_id]);
 
         bot.telegram.sendMessage(player.chat_id,
@@ -396,7 +417,7 @@ function send_help(id) {
 
 client.connect().then(() => {
 
-    client.query("set search_path to public,fcard_bot");
+    client.query("set search_path to public,fcard_game");
     bot.launch();
 
 
