@@ -160,7 +160,7 @@ bot.command('join', async (ctx) => {
 
     if (res.rowCount > 0) {
         name = parts.length === 2 ? parts[1] : res.rows[0].nickname;
-        await ctx.reply(util.format("Welcome back %s! Your first visit was %d/%d/%d", name, res.rows[0].first_seen.getDate(), res.rows[0].first_seen.getMonth(), res.rows[0].first_seen.getFullYear()))
+        await ctx.reply(util.format("Welcome back %s! Your first visit was %s", name, res.rows[0].first_seen.toISOString().slice(0, 10)))
     } else {
         name = parts.length === 2 ? parts[1] : ctx.from.username;
 
@@ -216,7 +216,6 @@ bot.command('startgame', async (ctx) => {
     }
 
     game.start();
-
     const result = await client.query('insert into "fcard_game"."games"(timestamp) values ($1) returning game_id', [new Date().toISOString()]);
 
     game.game_id = result.rows[0].game_id;
@@ -395,6 +394,10 @@ bot.on('message', async (ctx) => {
 });
 
 function print_debug() {
+    if (game.game_id === null || game.game_id === undefined) {
+        return;
+    }
+
     console.log("This is game number: " + game.game_id);
     console.log("Turn:" + game.turn);
     console.log("Players:" + game.players.map(p => p.player_name));
