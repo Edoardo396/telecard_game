@@ -295,6 +295,18 @@ bot.command('unsubscribe', async (ctx) => {
     ctx.reply("You won't be informed when a new game is started anymore")
 });
 
+bot.command('suits', async (ctx) => {
+
+    let str = util.format("%s is Spades (S). ITA: Picche\n%s is Hearts (H). ITA: Cuori\n%s is Diamonds (D). ITA: Quadri\n%s is Clubs (C). ITA: Fiori",
+        String.fromCharCode(0x2660),
+        String.fromCharCode(0x2665),
+        String.fromCharCode(0x2666),
+        String.fromCharCode(0x2663),
+    );
+
+    ctx.reply(str);
+
+});
 bot.on('message', async (ctx) => {
     let me = game.get_player(ctx.chat.id);
 
