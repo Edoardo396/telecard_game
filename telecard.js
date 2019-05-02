@@ -149,7 +149,7 @@ bot.command('join', async (ctx) => {
         return;
     }
 
-    if (game.get_player(ctx.chat.id<) != null) {
+    if (game.get_player(ctx.chat.id) != null) {
         ctx.reply("You are already in the game");
         return;
     }
