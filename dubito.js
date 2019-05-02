@@ -51,6 +51,21 @@ class Player {
         this.chat_id = chatid;
         this.hand = [];
     }
+
+    normalizeHand() {
+
+        let to_be_deleted = [];
+
+        for(let card of this.hand) {
+            let number = DubitoGame.get_number(card);
+
+            if(this.hand.filter(c => DubitoGame.get_number(c) === number).length === 4) {
+                to_be_deleted.push(number)
+            }
+        }
+
+        this.hand = this.hand.filter(c => !to_be_deleted.includes(DubitoGame.get_number(c)));
+    }
 }
 
 function cardToOutput(card) {

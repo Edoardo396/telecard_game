@@ -44,6 +44,9 @@ game.new_turn = function () {
 
     for (let i = 0; i < game.players.length; ++i) {
         let player = game.players[i];
+
+        player.normalizeHand();
+
         if (player.hand.length === 0) {
 
             let player_position = game.start_players_number - game.players.length + 1;
@@ -146,7 +149,7 @@ bot.command('join', async (ctx) => {
         return;
     }
 
-    if (game.get_player(ctx.chat.id) != null) {
+    if (game.get_player(ctx.chat.id<) != null) {
         ctx.reply("You are already in the game");
         return;
     }
@@ -251,6 +254,7 @@ bot.command('stopgame', async (ctx) => {
             "Game is finished, no winner is declared.");
     }
 });
+
 
 bot.command('hand', async (ctx) => {
     let me = game.get_player(ctx.chat.id);
