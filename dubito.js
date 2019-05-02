@@ -48,6 +48,7 @@ function handToOutput(hand) {
 class Player {
     constructor(name, chatid) {
         this.player_name = name;
+        this.id = null;
         this.chat_id = chatid;
         this.hand = [];
     }
@@ -65,6 +66,8 @@ class Player {
         }
 
         this.hand = this.hand.filter(c => !to_be_deleted.includes(DubitoGame.get_number(c)));
+
+        return to_be_deleted;
     }
 }
 

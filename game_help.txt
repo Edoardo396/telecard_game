@@ -1,2 +1,23 @@
-QUI DOVREBBE ESSERCI L'AIUTO
-MA NON C'È
+Join the game using /join.
+If you are the first person to enter the game
+you will also need to /startgame to start the game once all people are in.
+One cannot join a game that has already started.
+
+One the game is started just follow the game.
+To play a card you can either tap the button on the keyboard
+or send a message using this syntax: "card_played played_as"
+card_played indicates the card you want to play written with emoji or
+by using number + suit initial (/suits) (i.e. 1D, 5C, 9H, 7S)
+played_as is the number you want to play the card as (1, 5, 8, ...)
+Obviously you must have the card you want to play in your hand (/hand)
+
+You can see info about the game by sending /gameinfo
+To doubt press the corrisponding button or send "Doubt".
+
+If the keyboard disappears you can bring it back by sending /keyboard
+To leave a game that has not started send /leave
+
+If you created the game you can stop it by sending /stopgame
+You can subscribe and be notified if a new game starts by sending /subscribe (/unsubscribe to unsubscribe)
+
+You can get your stats with /stats or get the full scoreboard with /scoreboard

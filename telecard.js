@@ -6,7 +6,6 @@ const Markup = require('telegraf/markup');
 const Dubito = require('./dubito.js');
 const util = require("util");
 const fs = require("fs");
-
 const {Client} = require('pg');
 
 const client = new Client({
@@ -19,24 +18,9 @@ const client = new Client({
 
 const game = new Dubito.DubitoGame();
 
-const CARDS_PER_ROW = 7;
+const CARDS_PER_ROW = 7; // max number of cards per keyboard row
 
 const bot = new Telegraf("817731928:AAGYI67d8NIbN0T4g6zEOdKf52o1YFMIfX4");
-
-function getButtonsArray(hand) {
-    let arr = [];
-
-    for (let i = 0; i < hand.length; ++i) {
-        let card = Dubito.cardToOutput(hand[i]);
-        if (arr[Math.floor(i / CARDS_PER_ROW)] === undefined) {
-            arr.push([]);
-        }
-        arr[Math.floor(i / CARDS_PER_ROW)].push(card)
-    }
-
-    return arr;
-}
-
 
 game.new_turn = function () {
 
@@ -93,56 +77,6 @@ bot.start(async (ctx) => {
     send_help(ctx.chat.id)
 });
 
-bot.command('keyboard', async (ctx) => {
-    let me = game.get_player(ctx.chat.id);
-
-    if (game.turn === -1) {
-        await ctx.reply("Game not started, either /join or ask the administrator to start the game");
-        return;
-    }
-
-    if (game.player_turn() !== me) {
-        await ctx.reply("It's not your turn");
-        return;
-    }
-
-    let btns = getButtonsArray(me.hand);
-    btns.push(["Doubt"]);
-
-    bot.telegram.sendMessage(me.chat_id, "", Markup.keyboard(btns).oneTime().resize().extra());
-});
-
-bot.command('leave', async (ctx) => {
-    let me = game.get_player(ctx.chat.id);
-
-
-    if (game.turn > -1) {
-        await ctx.reply("You cannot leave a game that is already started. Please ask the administrator to run /stopgame");
-        return;
-    }
-
-    game._foreach_player(async p => {
-        if (p !== me) {
-            await bot.telegram.sendMessage(p.chat_id, me.player_name + " has left the game");
-        }
-    });
-
-    bot.telegram.sendMessage(me.chat_id, "You left the game");
-
-
-    game.players.splice(game.players.indexOf(me), 1);
-});
-
-bot.command('gameinfo', async (ctx) => {
-    ctx.reply("Connected players: " + game.players.map(element => element.player_name));
-
-
-    if (game.turn > -1) {
-        ctx.reply("Turn: " + game.turn);
-        ctx.reply("Player's turn: " + game.player_turn().player_name);
-    }
-});
-
 bot.command('join', async (ctx) => {
     if (game.turn !== -1) {
         ctx.reply("Game already started, try again later");
@@ -159,11 +93,14 @@ bot.command('join', async (ctx) => {
     const res = await client.query('select * from "users" where chat_id = $1', [ctx.chat.id]);
 
     let name;
-
+    let id;
 
     if (res.rowCount > 0) {
         name = parts.length === 2 ? parts[1] : res.rows[0].nickname;
-        await ctx.reply(util.format("Welcome back %s! Your first visit was %s", name, res.rows[0].first_seen.toISOString().slice(0, 10)))
+        id = res.rows[0].user_id;
+        await ctx.reply(util.format("Welcome back %s! Your first visit was %s", name, res.rows[0].first_seen.toISOString().slice(0, 10)));
+
+        client.query('update "users" set last_seen=$1 where user_id=$2', [new Date().toISOString(), id])
     } else {
         name = parts.length === 2 ? parts[1] : ctx.from.username;
 
@@ -174,10 +111,12 @@ bot.command('join', async (ctx) => {
 
         await ctx.reply("Welcome to fcard_bot!");
 
-        await client.query('insert into "users"(chat_id, nickname, first_seen) values ($1, $2, $3)', [ctx.chat.id, name, new Date().toISOString()])
+        const result = await client.query('insert into "users"(chat_id, nickname, first_seen) values ($1, $2, $3) returning user_id', [ctx.chat.id, name, new Date().toISOString()]);
+        id = result.rows[0].user_id;
     }
 
     let me = new Dubito.Player(name.replace("\r", ""), ctx.chat.id);
+    me.id = id;
 
     game.players.push(me);
 
@@ -255,7 +194,6 @@ bot.command('stopgame', async (ctx) => {
     }
 });
 
-
 bot.command('hand', async (ctx) => {
     let me = game.get_player(ctx.chat.id);
 
@@ -265,6 +203,48 @@ bot.command('hand', async (ctx) => {
     }
 
     ctx.reply(util.format("Your hand is: %s \n(%d cards)", Dubito.handToOutput(me.hand), me.hand.length));
+});
+
+bot.command('leave', async (ctx) => {
+    let me = game.get_player(ctx.chat.id);
+
+
+    if (game.turn > -1) {
+        await ctx.reply("You cannot leave a game that is already started. Please ask the administrator to run /stopgame");
+        return;
+    }
+
+    game._foreach_player(async p => {
+        if (p !== me) {
+            await bot.telegram.sendMessage(p.chat_id, me.player_name + " has left the game");
+        }
+    });
+
+    bot.telegram.sendMessage(me.chat_id, "You left the game");
+
+
+    game.players.splice(game.players.indexOf(me), 1);
+});
+
+bot.command('gameinfo', async (ctx) => {
+    if (game.turn === -1) {
+        ctx.reply("Game is not started");
+        return;
+    }
+
+    let str = util.format("Connected players: %s\nTurn number: %d\nIt's %s's turn\nThere are %d cards on the table\n\n",
+        game.players.map(p => p.player_name), game.turn, game.player_turn().player_name, game.banco.length);
+
+
+    for (let player of game.players) {
+        str += util.format("%s has %d cards in hand\n", player.player_name, player.hand.length)
+    }
+
+    await ctx.reply(str, null);
+});
+
+bot.command('help', async (ctx) => {
+    send_help(ctx.chat.id);
 });
 
 bot.command('debuginfo', async (ctx) => {
@@ -278,8 +258,30 @@ bot.command('debuginfo', async (ctx) => {
     }
 });
 
-bot.command('help', async (ctx) => {
-    send_help(ctx.chat.id);
+bot.command('keyboard', async (ctx) => {
+    let me = game.get_player(ctx.chat.id);
+
+    if (game.turn === -1) {
+        await ctx.reply("Game not started, either /join or ask the administrator to start the game");
+        return;
+    }
+
+    if (game.player_turn() !== me) {
+        await ctx.reply("It's not your turn");
+        return;
+    }
+
+    let btns = getButtonsArray(me.hand);
+    btns.push(["Doubt"]);
+
+    bot.telegram.sendMessage(me.chat_id, ".", Markup.keyboard(btns).oneTime().resize().extra());
+});
+
+bot.command('stats', async (ctx) => {
+    const mer = await client.query('select * from "users" where chat_id=$1', [ctx.chat.id]);
+    const result = await client.query('select count(*) from "users_games" where user_id=$1 and position=1 union select count(*) from "users_games" where user_id=$1', [mer.rows[0].user_id]);
+
+    await ctx.reply(util.format("Your first game was on %s.\nYou won %d games out of %d games played", mer.rows[0].first_seen.toISOString().slice(0, 10), result.rows[0].count, result.rows[1].count))
 });
 
 bot.on('message', async (ctx) => {
@@ -308,10 +310,11 @@ bot.on('message', async (ctx) => {
     ctx.reply(".", Extra.markup((m) => m.removeKeyboard(true)));
 
     if (ctx.message.text.toLowerCase() === "doubt") {
+
+        console.log(me.player_name + " has doubted");
+
         if (game.dubita()) {
             let send_promises = [];
-
-
             for (let player of game.players) {
 
                 send_promises.push(bot.telegram.sendMessage(player.chat_id, util.format("%s doubted right, last card was %s and not a %s!\n%s has now %d card in hands!",
@@ -322,7 +325,6 @@ bot.on('message', async (ctx) => {
 
                     }));
             }
-
 
             Promise.all(send_promises).then(val => {
                 game.last_declared_card = null;
@@ -336,15 +338,12 @@ bot.on('message', async (ctx) => {
 
                 send_promises.push(bot.telegram.sendMessage(p.chat_id, util.format("%s doubted wrong, last card was effectively %s!\n%s has now %d card in hands!",
                     me.player_name, Dubito.cardToOutput(game.last_table_card), me.player_name, me.hand.length)))
-
             }
 
             Promise.all(send_promises).then(val => {
                 game.last_declared_card = null;
                 game.new_turn();
             });
-
-
         }
 
         print_debug();
@@ -422,12 +421,23 @@ function send_help(id) {
     bot.telegram.sendMessage(id, fs.readFileSync("./game_help.txt").toString())
 }
 
+function getButtonsArray(hand) {
+    let arr = [];
+
+    for (let i = 0; i < hand.length; ++i) {
+        let card = Dubito.cardToOutput(hand[i]);
+        if (arr[Math.floor(i / CARDS_PER_ROW)] === undefined) {
+            arr.push([]);
+        }
+        arr[Math.floor(i / CARDS_PER_ROW)].push(card)
+    }
+
+    return arr;
+}
+
 client.connect().then(() => {
 
     client.query("set search_path to public,fcard_game");
     bot.launch();
 
-
 });
-
-
