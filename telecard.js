@@ -318,7 +318,7 @@ bot.on('message', async (ctx) => {
                     me.player_name, Dubito.cardToOutput(game.last_table_card), game.last_declared_card, game.last_player_turn().player_name, game.last_player_turn().hand.length))
 
                     .then(v => {
-                        bot.telegram.sendMessage(player.chat_id, "It is " + me.player_name + "'s turn");
+                        // bot.telegram.sendMessage(player.chat_id, "It is " + me.player_name + "'s turn");
 
                     }));
             }

@@ -27,11 +27,11 @@ function reverseSeedConversion(value) {
     if (str === "D") {
         converted = "C"
     } else if (str === "C") {
-        converted = "A"
+        converted = "D"
     } else if (str === "H") {
         converted = "B"
     } else if (str === "S") {
-        converted = "D"
+        converted = "A"
     } else {
         converted = _.invert(seedConversion)[str]
     }
