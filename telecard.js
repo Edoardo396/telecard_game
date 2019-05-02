@@ -29,7 +29,13 @@ game.new_turn = function () {
     for (let i = 0; i < game.players.length; ++i) {
         let player = game.players[i];
 
-        player.normalizeHand();
+        let discarded = player.findQuadris();
+
+        game._foreach_player(p => {
+            bot.telegram.sendMessage(p.chat_id, player.player_name + " discarded " + discarded);
+        });
+
+        player.discard(discarded);
 
         if (player.hand.length === 0) {
 
@@ -100,7 +106,7 @@ bot.command('join', async (ctx) => {
         id = res.rows[0].user_id;
         await ctx.reply(util.format("Welcome back %s! Your first visit was %s", name, res.rows[0].first_seen.toISOString().slice(0, 10)));
 
-        client.query('update "users" set last_seen=$1 where user_id=$2', [new Date().toISOString(), id])
+        client.query('update "users" set last_seen=$1,nickname=$3 where user_id=$2', [new Date().toISOString(), id, name])
     } else {
         name = parts.length === 2 ? parts[1] : ctx.from.username;
 
@@ -309,6 +315,11 @@ bot.command('suits', async (ctx) => {
     ctx.reply(str);
 
 });
+
+bot.on('callback_query', async (ctx) => {
+    console.log(ctx.message);
+});
+
 bot.on('message', async (ctx) => {
     let me = game.get_player(ctx.chat.id);
 

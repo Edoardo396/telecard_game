@@ -53,7 +53,7 @@ class Player {
         this.hand = [];
     }
 
-    normalizeHand() {
+    findQuadris() {
 
         let to_be_deleted = [];
 
@@ -65,9 +65,11 @@ class Player {
             }
         }
 
-        this.hand = this.hand.filter(c => !to_be_deleted.includes(DubitoGame.get_number(c)));
-
         return to_be_deleted;
+    }
+
+    discard(to_be_deleted) {
+        this.hand = this.hand.filter(c => !to_be_deleted.includes(DubitoGame.get_number(c)));
     }
 }
 
@@ -80,18 +82,19 @@ function cardToOutput(card) {
 }
 
 function createDeck(nPlayers) {
-    let cards = [];
-
-    let number = nPlayers <= 5 ? deckSize[nPlayers] : nPlayers[5];
-
-    for (let i = 1; i <= number / 4; i++) {
-        cards.push("A" + i);
-        cards.push("B" + i);
-        cards.push("C" + i);
-        cards.push("D" + i);
-    }
-
-    return cards;
+    return ["A1", "B1", "C1", "D1", "A2", "B2"];
+    // let cards = [];
+    //
+    // let number = nPlayers <= 5 ? deckSize[nPlayers] : nPlayers[5];
+    //
+    // for (let i = 1; i <= number / 4; i++) {
+    //     cards.push("A" + i);
+    //     cards.push("B" + i);
+    //     cards.push("C" + i);
+    //     cards.push("D" + i);
+    // }
+    //
+    // return cards;
 }
 
 class DubitoGame {
