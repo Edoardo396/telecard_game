@@ -121,14 +121,16 @@ bot.command('join', async (ctx) => {
     game.players.push(me);
 
 
-    ctx.reply(util.format("Welcome to the game %s! \nConnected players: %s", me.player_name, game.players.map(p => p.player_name)));
+    await ctx.reply(util.format("Welcome to the game %s! \nConnected players: %s", me.player_name, game.players.map(p => p.player_name)));
 
     if (game.game_admin == null) {
-        ctx.reply("You're the first player, wait for others to connect and then run /startgame");
+        await ctx.reply("You're the first player, wait for others to connect and then run /startgame");
         game.game_admin = me;
-        sendSubscriptionNotification(me);
+        if (!ctx.message.text.includes("private")) {
+            sendSubscriptionNotification(me);
+        }
     } else {
-        ctx.reply("Wait for the administrator to start the game.")
+        await ctx.reply("Wait for the administrator to start the game.")
     }
 
     game._foreach_player(p => {
