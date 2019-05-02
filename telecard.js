@@ -126,6 +126,7 @@ bot.command('join', async (ctx) => {
     if (game.game_admin == null) {
         ctx.reply("You're the first player, wait for others to connect and then run /startgame");
         game.game_admin = me;
+        sendSubscriptionNotification(me);
     } else {
         ctx.reply("Wait for the administrator to start the game.")
     }
@@ -284,6 +285,16 @@ bot.command('stats', async (ctx) => {
     await ctx.reply(util.format("Your first game was on %s.\nYou won %d games out of %d games played", mer.rows[0].first_seen.toISOString().slice(0, 10), result.rows[0].count, result.rows[1].count))
 });
 
+bot.command('subscribe', async (ctx) => {
+    await client.query('update "users" set subscribed=true where chat_id=$1', [ctx.chat.id]);
+    ctx.reply("You will now be informed when a new game is started")
+});
+
+bot.command('unsubscribe', async (ctx) => {
+    await client.query('update "users" set subscribed=false where chat_id=$1', [ctx.chat.id]);
+    ctx.reply("You won't be informed when a new game is started anymore")
+});
+
 bot.on('message', async (ctx) => {
     let me = game.get_player(ctx.chat.id);
 
@@ -433,6 +444,14 @@ function getButtonsArray(hand) {
     }
 
     return arr;
+}
+
+async function sendSubscriptionNotification(me) {
+    const res = await client.query('select chat_id from "users" where subscribed=true and user_id<>$1', [me.id]);
+
+    for (let row of res.rows) {
+        await bot.telegram.sendMessage(row.chat_id, util.format("%s is starting new game, /join quickly to join it!\nSend /unsubscribe if you don't want to be informed when a new game starts", me.player_name))
+    }
 }
 
 client.connect().then(() => {
