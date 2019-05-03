@@ -7,7 +7,7 @@ const _ = require("underscore/underscore");
 // };
 
 const deckSize = {
-    2: 12,
+    2: 20,
     3: 36,
     4: 40,
     5: 52

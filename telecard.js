@@ -7,6 +7,8 @@ const Dubito = require('./dubito.js');
 const util = require("util");
 const fs = require("fs");
 const {Client} = require('pg');
+const _ = require("underscore/underscore");
+
 
 const client = new Client({
     host: '10.0.1.0',
@@ -31,11 +33,13 @@ game.new_turn = async function () {
 
         let discarded = player.findQuadris();
 
-        game._foreach_player(p => {
-            bot.telegram.sendMessage(p.chat_id, player.player_name + " discarded 4 card with number " + discarded);
-        });
+        if (discarded.length > 0) {
+            game._foreach_player(p => {
+                bot.telegram.sendMessage(p.chat_id, player.player_name + " discarded 4 card with number " + discarded.dis);
+            });
 
-        player.discard(discarded);
+            player.discard(discarded);
+        }
     }
 
     let twice_last_player = game.twice_last_player_turn();
@@ -468,8 +472,15 @@ function send_help(id) {
     bot.telegram.sendMessage(id, fs.readFileSync("./game_help.txt").toString())
 }
 
-function getButtonsArray(hand) {
+function getButtonsArray(_hand) {
     let arr = [];
+    let hand = _hand.slice(0);
+
+    hand.sort(function (a, b) {
+        let cmp = compare(a.substring(1), b.substring(1));
+
+        return cmp === 0 ? compare(a.substring(0), b.substring(0)) : cmp;
+    });
 
     for (let i = 0; i < hand.length; ++i) {
         let card = Dubito.cardToOutput(hand[i]);
@@ -488,6 +499,13 @@ async function sendSubscriptionNotification(me) {
     for (let row of res.rows) {
         await bot.telegram.sendMessage(row.chat_id, util.format("%s is starting new game, /join quickly to join it!\nSend /unsubscribe if you don't want to be informed when a new game starts", me.player_name))
     }
+}
+
+function compare(x, y) {
+    if (x === y) {
+        return 0;
+    }
+    return x > y ? 1 : -1;
 }
 
 client.connect().then(() => {
