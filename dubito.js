@@ -9,6 +9,7 @@ const _ = require("underscore/underscore");
 const deckSize = {
     2: 6,
     3: 36,
+    4: 40,
     5: 52
 };
 
