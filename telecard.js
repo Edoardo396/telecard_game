@@ -22,7 +22,7 @@ const CARDS_PER_ROW = 7; // max number of cards per keyboard row
 
 const bot = new Telegraf("817731928:AAGYI67d8NIbN0T4g6zEOdKf52o1YFMIfX4");
 
-game.new_turn = function () {
+game.new_turn = async function () {
 
     // check for victory conditions
 
@@ -36,27 +36,29 @@ game.new_turn = function () {
         });
 
         player.discard(discarded);
+    }
 
-        if (player.hand.length === 0) {
+    let twice_last_player = game.twice_last_player_turn();
 
-            let player_position = game.start_players_number - game.players.length + 1;
+    if (twice_last_player !== null && game.last_player_turn().hand.length === 0) {
 
-            bot.telegram.sendMessage(player.chat_id, util.format("You won! You will be removed from the game. You are %d in position!", player_position));
-            game.players.splice(i, 1);
+        let player_position = game.start_players_number - game.players.length + 1;
 
-            client.query(
-                'update "fcard_game"."users_games" set position=$1 where game_id = $2 and user_id=(select user_id from "users" where chat_id=$3)',
-                [player_position, game.game_id, player.chat_id]);
+        await bot.telegram.sendMessage(twice_last_player.chat_id, util.format("You won! You will be removed from the game. You are %d in position!", player_position));
+        game.players.splice(game.players.indexOf(twice_last_player), 1);
 
-            game._foreach_player(p => {
-                if (player !== p)
-                    bot.telegram.sendMessage(p.chat_id, util.format("%s won!", player.player_name));
-            });
-        }
+        await client.query(
+            'update "fcard_game"."users_games" set position=$1 where game_id = $2 and user_id=(select user_id from "users" where chat_id=$3)',
+            [player_position, game.game_id, twice_last_player.chat_id]);
+
+        game._foreach_player(p => {
+            if (twice_last_player !== p)
+                bot.telegram.sendMessage(p.chat_id, util.format("%s won!", twice_last_player.player_name));
+        });
     }
 
     if (game.players.length === 1) {
-        bot.telegram.sendMessage(game.players[0].chat_id, "You lost! Game is finished");
+        await bot.telegram.sendMessage(game.players[0].chat_id, "You lost! Game is finished");
         client.query(
             'update "fcard_game"."users_games" set position=$1 where game_id = $2 and user_id=(select user_id from "users" where chat_id=$3)',
             [game.start_players_number, game.game_id, game.players[0].chat_id]);
@@ -290,7 +292,7 @@ bot.command('stats', async (ctx) => {
     const mer = await client.query('select * from "users" where chat_id=$1', [ctx.chat.id]);
     const result = await client.query('select count(*) from "users_games" where user_id=$1 and position=1 union select count(*) from "users_games" where user_id=$1', [mer.rows[0].user_id]);
 
-    await ctx.reply(util.format("Your first game was on %s.\nYou won %d games out of %d games played", mer.rows[0].first_seen.toISOString().slice(0, 10), result.rows[0].count, result.rows[1].count))
+    await ctx.reply(util.format("Your first game was on %s.\nYou played your last game on %s\nYou won %d games out of %d games played", mer.rows[0].first_seen.toISOString().slice(0, 10), mer.rows[0].last_seen.toISOString().slice(0, 10), result.rows[0].count, result.rows[1].count))
 });
 
 bot.command('subscribe', async (ctx) => {
@@ -316,8 +318,16 @@ bot.command('suits', async (ctx) => {
 
 });
 
-bot.on('callback_query', async (ctx) => {
-    console.log(ctx.message);
+bot.command('leaderboard', async (ctx) => {
+    const result = await client.query('select nickname, count(*) from users U join users_games UG on U.user_id = UG.user_id where position=1 group by U.user_id order by count(*) desc');
+
+    let str = "Leaderboard of players based on number of games won\n";
+
+    for (let i = 0; i < result.rows.length; ++i) {
+        str += util.format("%d: %s (%d games won)\n", i + 1, result.rows[i].nickname, result.rows[i].count);
+    }
+
+    ctx.reply(str);
 });
 
 bot.on('message', async (ctx) => {

@@ -7,7 +7,7 @@ const _ = require("underscore/underscore");
 // };
 
 const deckSize = {
-    2: 6,
+    2: 12,
     3: 36,
     4: 40,
     5: 52
@@ -83,19 +83,19 @@ function cardToOutput(card) {
 }
 
 function createDeck(nPlayers) {
-    return ["A1", "B1", "C1", "D1", "A2", "B2"];
-    // let cards = [];
-    //
-    // let number = nPlayers <= 5 ? deckSize[nPlayers] : nPlayers[5];
-    //
-    // for (let i = 1; i <= number / 4; i++) {
-    //     cards.push("A" + i);
-    //     cards.push("B" + i);
-    //     cards.push("C" + i);
-    //     cards.push("D" + i);
-    // }
-    //
-    // return cards;
+    // return ["A1", "B1", "C1", "D1", "A2", "B2"];
+    let cards = [];
+
+    let number = nPlayers <= 5 ? deckSize[nPlayers] : nPlayers[5];
+
+    for (let i = 1; i <= number / 4; i++) {
+        cards.push("A" + i);
+        cards.push("B" + i);
+        cards.push("C" + i);
+        cards.push("D" + i);
+    }
+
+    return cards;
 }
 
 class DubitoGame {
@@ -149,6 +149,13 @@ class DubitoGame {
             return this.players[this.players.length - 1];
         else
             return this.players[(this.turn % this.players.length) - 1]
+    }
+
+    twice_last_player_turn() {
+        if (this.turn % this.players.length === 1)
+            return this.players[this.players.length - 2];
+        else
+            return this.players[(this.turn % this.players.length) - 2]
     }
 
     dubita() {
