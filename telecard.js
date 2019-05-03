@@ -321,6 +321,7 @@ bot.on('callback_query', async (ctx) => {
 });
 
 bot.on('message', async (ctx) => {
+// return;
     let me = game.get_player(ctx.chat.id);
 
     if (ctx.message.text.toString()[0] === "/") {
