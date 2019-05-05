@@ -58,10 +58,10 @@ class Player {
 
         let to_be_deleted = [];
 
-        for(let card of this.hand) {
+        for (let card of this.hand) {
             let number = DubitoGame.get_number(card);
 
-            if(this.hand.filter(c => DubitoGame.get_number(c) === number).length === 4) {
+            if (this.hand.filter(c => DubitoGame.get_number(c) === number).length === 4) {
                 to_be_deleted.push(number)
             }
         }
@@ -103,6 +103,7 @@ class DubitoGame {
     constructor() {
         this.cards = [];
         this.new_turn = null;
+        this.on_player_wins = null;
         this.gameReset()
     }
 
@@ -151,14 +152,8 @@ class DubitoGame {
             return this.players[(this.turn % this.players.length) - 1]
     }
 
-    twice_last_player_turn() {
-        if (this.turn % this.players.length === 1)
-            return this.players[this.players.length - 2];
-        else
-            return this.players[(this.turn % this.players.length) - 2]
-    }
 
-    dubita() {
+    async dubita() {
 
         let result = DubitoGame.get_number(this.last_table_card) !== this.last_declared_card;
 
@@ -167,15 +162,32 @@ class DubitoGame {
             this.last_player_turn().hand = this.last_player_turn().hand.concat(this.banco);
             this.banco = [];
 
+            await this.check_victory_condition();
+
         } else {
 
             this.player_turn().hand = this.player_turn().hand.concat(this.banco);
             this.banco = [];
+
+            this.check_victory_condition();
             this.turn++;
 
         }
 
         return result
+    }
+
+    async check_victory_condition() {
+
+        let last_player = this.last_player_turn();
+
+        if (last_player === null) return;
+
+        if (last_player.hand.length === 0) {
+            await this.on_player_wins(last_player);
+
+            this.players.splice(this.players.indexOf(last_player, 1));
+        }
     }
 
     _foreach_player(f) {
@@ -192,7 +204,7 @@ class DubitoGame {
         return this.cards.includes(card);
     }
 
-    gioca(real, declared) {
+    async gioca(real, declared) {
         if (!this.player_turn().hand.includes(real)) {
             throw new Error("You can't play a card you don't have")
         }
@@ -205,6 +217,7 @@ class DubitoGame {
         this.last_declared_card = declared;
         this.last_table_card = real;
 
+        await this.check_victory_condition();
         this.turn++;
     }
 }

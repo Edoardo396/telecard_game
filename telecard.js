@@ -2,12 +2,12 @@
 
 const Telegraf = require('telegraf');
 const Extra = require('telegraf/extra');
+const statics = require('./statics');
 const Markup = require('telegraf/markup');
 const Dubito = require('./dubito.js');
 const util = require("util");
 const fs = require("fs");
 const {Client} = require('pg');
-const _ = require("underscore/underscore");
 
 
 const client = new Client({
@@ -26,7 +26,7 @@ const bot = new Telegraf("817731928:AAGYI67d8NIbN0T4g6zEOdKf52o1YFMIfX4");
 
 game.new_turn = async function () {
 
-    // check for victory conditions
+    // check for discardable cards
 
     for (let i = 0; i < game.players.length; ++i) {
         let player = game.players[i];
@@ -35,41 +35,27 @@ game.new_turn = async function () {
 
         if (discarded.length > 0) {
             game._foreach_player(p => {
-                bot.telegram.sendMessage(p.chat_id, player.player_name + " discarded 4 card with number " + discarded.dis);
+                bot.telegram.sendMessage(p.chat_id, util.format("%s has discarded %d card(s) with number(s) %s", player.player_name, discarded.length, discarded.filter(statics.distinct)));
             });
 
             player.discard(discarded);
         }
     }
 
-    let twice_last_player = game.twice_last_player_turn();
 
-    if (twice_last_player !== null && game.last_player_turn().hand.length === 0) {
-
-        let player_position = game.start_players_number - game.players.length + 1;
-
-        await bot.telegram.sendMessage(twice_last_player.chat_id, util.format("You won! You will be removed from the game. You are %d in position!", player_position));
-        game.players.splice(game.players.indexOf(twice_last_player), 1);
-
-        await client.query(
-            'update "fcard_game"."users_games" set position=$1 where game_id = $2 and user_id=(select user_id from "users" where chat_id=$3)',
-            [player_position, game.game_id, twice_last_player.chat_id]);
-
-        game._foreach_player(p => {
-            if (twice_last_player !== p)
-                bot.telegram.sendMessage(p.chat_id, util.format("%s won!", twice_last_player.player_name));
-        });
-    }
+    // check if game if finished
 
     if (game.players.length === 1) {
-        await bot.telegram.sendMessage(game.players[0].chat_id, "You lost! Game is finished");
+        await bot.telegram.sendMessage(game.players[0].chat_id, "You lost! Game is finished, to start a new one /join again");
         client.query(
-            'update "fcard_game"."users_games" set position=$1 where game_id = $2 and user_id=(select user_id from "users" where chat_id=$3)',
+            'update "users_games" set position=$1 where game_id = $2 and user_id=(select user_id from "users" where chat_id=$3)',
             [game.start_players_number, game.game_id, game.players[0].chat_id]);
         game.gameReset();
         return;
     }
 
+
+    // send keyboard to users
 
     for (let player of game.players) {
         if (player === game.player_turn()) {
@@ -79,9 +65,28 @@ game.new_turn = async function () {
 
             bot.telegram.sendMessage(player.chat_id, "It's your turn", Markup.keyboard(btns).resize().extra());
         } else {
-            bot.telegram.sendMessage(player.chat_id, "It's " + game.player_turn().player_name + "'s turn");
+            bot.telegram.sendMessage(player.chat_id, "It's " + game.player_turn().player_name + "'s turn", Markup.removeKeyboard(true).extra());
         }
     }
+};
+
+game.on_player_wins = async function (p) {
+
+    let player_position = game.start_players_number - game.players.length + 1;
+
+    for (let pl of game.players) {
+        if (p === pl) {
+            bot.telegram.sendMessage(pl.chat_id, util.format("You have won and will be removed from the game! You position is number %d", p.player_name, player_position));
+        } else {
+            bot.telegram.sendMessage(pl.chat_id, util.format("%s has won and will be removed from the game!", p.player_name));
+        }
+    }
+
+    await client.query(
+        'update "users_games" set position=$1 where game_id = $2 and user_id=(select user_id from "users" where chat_id=$3)',
+        [player_position, game.game_id, p.chat_id]);
+
+
 };
 
 bot.start(async (ctx) => {
@@ -173,14 +178,14 @@ bot.command('startgame', async (ctx) => {
     }
 
     game.start();
-    const result = await client.query('insert into "fcard_game"."games"(timestamp) values ($1) returning game_id', [new Date().toISOString()]);
+    const result = await client.query('insert into "games"(timestamp) values ($1) returning game_id', [new Date().toISOString()]);
 
     game.game_id = result.rows[0].game_id;
 
 
     for (let player of game.players) {
         await client.query(
-            'insert into "fcard_game"."users_games"(user_id, game_id, position) select user_id, $1, NULL from "users" where chat_id=$2',
+            'insert into "users_games"(user_id, game_id, position) select user_id, $1, NULL from "users" where chat_id=$2',
             [game.game_id, player.chat_id]);
 
         bot.telegram.sendMessage(player.chat_id,
@@ -358,13 +363,13 @@ bot.on('message', async (ctx) => {
         return;
     }
 
-    ctx.reply(".", Extra.markup((m) => m.removeKeyboard(true)));
+    // ctx.reply(".", Extra.markup((m) => m.removeKeyboard(true)));
 
     if (ctx.message.text.toLowerCase() === "doubt") {
 
         console.log(me.player_name + " has doubted");
 
-        if (game.dubita()) {
+        if (await game.dubita()) {
             let send_promises = [];
             for (let player of game.players) {
 
@@ -396,8 +401,6 @@ bot.on('message', async (ctx) => {
                 game.new_turn();
             });
         }
-
-        print_debug();
         return;
     }
 
@@ -429,7 +432,7 @@ bot.on('message', async (ctx) => {
 
     try {
         console.log(util.format("%s playing %s as %d\n", me.player_name, real, declared));
-        game.gioca(real, declared)
+        await game.gioca(real, declared)
     } catch (e) {
         ctx.reply(e.message);
         console.log("Command Failed");
@@ -443,8 +446,8 @@ bot.on('message', async (ctx) => {
         bot.telegram.sendMessage(p.chat_id, util.format("%s played %s\nThere are %d cards on the table", me.player_name, declared, game.banco.length))
     });
 
-    game.new_turn();
     print_debug();
+    game.new_turn();
 });
 
 function print_debug() {
@@ -477,9 +480,9 @@ function getButtonsArray(_hand) {
     let hand = _hand.slice(0);
 
     hand.sort(function (a, b) {
-        let cmp = compare(a.substring(1), b.substring(1));
+        let cmp = statics.compare(a.substring(1), b.substring(1));
 
-        return cmp === 0 ? compare(a.substring(0), b.substring(0)) : cmp;
+        return cmp === 0 ? statics.compare(a.substring(0), b.substring(0)) : cmp;
     });
 
     for (let i = 0; i < hand.length; ++i) {
@@ -499,13 +502,6 @@ async function sendSubscriptionNotification(me) {
     for (let row of res.rows) {
         await bot.telegram.sendMessage(row.chat_id, util.format("%s is starting new game, /join quickly to join it!\nSend /unsubscribe if you don't want to be informed when a new game starts", me.player_name))
     }
-}
-
-function compare(x, y) {
-    if (x === y) {
-        return 0;
-    }
-    return x > y ? 1 : -1;
 }
 
 client.connect().then(() => {
