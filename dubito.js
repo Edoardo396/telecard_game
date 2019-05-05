@@ -10,7 +10,12 @@ const deckSize = {
     2: 20,
     3: 36,
     4: 40,
-    5: 52
+    5: 52,
+    6: 60,
+    7: 72,
+    8: 80,
+    9: 90,
+    10: 101
 };
 
 const seedConversion = {
@@ -86,7 +91,7 @@ function createDeck(nPlayers) {
     // return ["A1", "B1", "C1", "D1", "A2", "B2"];
     let cards = [];
 
-    let number = nPlayers <= 5 ? deckSize[nPlayers] : nPlayers[5];
+    let number = nPlayers <= 10 ? deckSize[nPlayers] : nPlayers[10];
 
     for (let i = 1; i <= number / 4; i++) {
         cards.push("A" + i);

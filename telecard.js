@@ -201,7 +201,7 @@ bot.command('startgame', async (ctx) => {
 
     }
 
-    game.new_turn();
+    await game.new_turn();
 
     print_debug();
 });
@@ -389,9 +389,9 @@ bot.on('message', async (ctx) => {
                     }));
             }
 
-            Promise.all(send_promises).then(val => {
+            Promise.all(send_promises).then(async val => {
                 game.last_declared_card = null;
-                game.new_turn();
+                await game.new_turn();
             });
 
         } else {
@@ -403,9 +403,9 @@ bot.on('message', async (ctx) => {
                     me.player_name, Dubito.cardToOutput(game.last_table_card), me.player_name, me.hand.length)))
             }
 
-            Promise.all(send_promises).then(val => {
+            Promise.all(send_promises).then(async val => {
                 game.last_declared_card = null;
-                game.new_turn();
+                await game.new_turn();
             });
         }
         return;
@@ -454,7 +454,7 @@ bot.on('message', async (ctx) => {
     });
 
     print_debug();
-    game.new_turn();
+    await game.new_turn();
 });
 
 function print_debug() {
