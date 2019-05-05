@@ -511,9 +511,22 @@ async function sendSubscriptionNotification(me) {
     }
 }
 
-client.connect().then(() => {
+(async function main() {
 
-    client.query("set search_path to public,fcard_game");
+    let retries = 5;
+
+    while (retries) {
+        try {
+            await client.connect();
+            break;
+        } catch (err) {
+            console.log(err);
+            retries -= 1;
+            await new Promise(res => setTimeout(res, 5000));
+        }
+    }
+
+
+    await client.query("set search_path to public,fcard_game");
     bot.launch();
-
-});
+})();

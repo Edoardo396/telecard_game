@@ -1,15 +1,20 @@
-CREATE DATABASE fcard_game
-    WITH
-    OWNER = postgres
-    ENCODING = 'UTF8'
-    CONNECTION LIMIT = -1;
+-- CREATE DATABASE fcard_game
+--     WITH
+--     OWNER = postgres
+--     ENCODING = 'UTF8'
+--     CONNECTION LIMIT = -1;
+
+CREATE SCHEMA fcard_game
+    AUTHORIZATION postgres;
 
 CREATE TABLE fcard_game.users
 (
-    user_id   integer                     NOT NULL,
-    chat_id   character varying(50)       NOT NULL,
-    nickname  character varying(50)       NOT NULL,
-    fisr_seen timestamp without time zone NOT NULL,
+    user_id    integer                     NOT NULL,
+    chat_id    character varying(50)       NOT NULL,
+    nickname   character varying(50)       NOT NULL,
+    first_seen timestamp without time zone NOT NULL,
+    last_seen  timestamp without time zone NOT NULL,
+    subscribed boolean DEFAULT false,
     PRIMARY KEY (user_id)
 )
     WITH (

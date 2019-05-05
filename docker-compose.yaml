@@ -1,0 +1,19 @@
+version: "3.7"
+services:
+  db:
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=docker
+      - POSTGRES_DB=fcard_game
+    ports:
+      - "5432:5432"
+    build: './db'
+  node_bot:
+    build: './node_bot'
+    depends_on:
+      - db
+    network_mode: service:db
+volumes:
+  pgdata:
