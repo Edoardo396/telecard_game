@@ -9,6 +9,7 @@
   "author": "edoardo",
   "license": "ISC",
   "dependencies": {
+    "dotenv": "^8.0.0",
     "knex": "^0.16.5",
     "node-telegram-bot-api": "^0.30.0",
     "nodeunit": "^0.11.3",

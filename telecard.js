@@ -8,21 +8,23 @@ const Dubito = require('./dubito.js');
 const util = require("util");
 const fs = require("fs");
 const {Client} = require('pg');
+const process = require('process');
+require('dotenv').config();
 
 
 const client = new Client({
-    host: '10.0.1.0',
+    host: process.env.DB_HOST,
     port: 5432,
-    user: 'postgres',
-    password: '',
-    database: "fcard_game"
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
 });
 
 const game = new Dubito.DubitoGame();
 
 const CARDS_PER_ROW = 7; // max number of cards per keyboard row
 
-const bot = new Telegraf("817731928:AAGYI67d8NIbN0T4g6zEOdKf52o1YFMIfX4");
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 
 game.new_turn = async function () {
 
@@ -174,6 +176,11 @@ bot.command('startgame', async (ctx) => {
 
     if (me !== game.game_admin) {
         ctx.reply("You are not allowed to run this command");
+        return;
+    }
+
+    if (game.players.length === 1) {
+        ctx.reply("You are not allowed to play alone");
         return;
     }
 
