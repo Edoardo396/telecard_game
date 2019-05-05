@@ -7,7 +7,7 @@ const _ = require("underscore/underscore");
 // };
 
 const deckSize = {
-    2: 20,
+    2: 12,
     3: 36,
     4: 40,
     5: 52,
@@ -218,11 +218,12 @@ class DubitoGame {
             throw new Error("You must play a card with the same number of the last one!")
         }
 
+        await this.check_victory_condition();
+
         this.banco.push(real);
         this.last_declared_card = declared;
         this.last_table_card = real;
 
-        await this.check_victory_condition();
         this.turn++;
     }
 }
