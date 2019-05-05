@@ -78,7 +78,7 @@ game.on_player_wins = async function (p) {
 
     for (let pl of game.players) {
         if (p === pl) {
-            bot.telegram.sendMessage(pl.chat_id, util.format("You have won and will be removed from the game! You position is number %d", p.player_name, player_position));
+            bot.telegram.sendMessage(pl.chat_id, util.format("You have won and will be removed from the game! Your position is number %d", player_position));
         } else {
             bot.telegram.sendMessage(pl.chat_id, util.format("%s has won and will be removed from the game!", p.player_name));
         }
